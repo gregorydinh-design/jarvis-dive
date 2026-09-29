@@ -132,6 +132,7 @@ $('load').addEventListener('click', async () => {
       },
     }, { context_window_size: 2048 }); // contexte réduit : moins de mémoire (nos consignes font ~700 jetons)
     trace({ model, stage: 'ok' });
+    $('crash').hidden = true;
     showStorage();
     currentModel = model;
     const s = ((performance.now() - t0) / 1000).toFixed(1);
