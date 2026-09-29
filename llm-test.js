@@ -1,7 +1,7 @@
 // JARVIS DIVE — Banc d'essai LLM dans Safari (WebLLM + WebGPU)
 const WEBLLM_URL = 'https://esm.run/@mlc-ai/web-llm@0.2.85';
 let webllm = null; // chargé à la demande : la page reste utilisable si la bibliothèque est injoignable
-import { buildCommandMessages, readCalls, CALLS_SCHEMA, buildQuestionMessages } from './assistant/llm.js';
+import { buildCommandMessages, readCalls, CALLS_SCHEMA, buildQuestionMessages } from './assistant/llm.js?v=052';
 import { applyToolCalls } from './assistant/commands.js';
 import { parseCommand } from './assistant/parser.js';
 import { planSummary } from './assistant/summary.js';
@@ -250,9 +250,9 @@ $('ask').addEventListener('click', async () => {
 // ---------------------------------------------------------------------------
 // 5. Conversation vocale : le LLM comprend et choisit, JARVIS calcule et parle.
 // ---------------------------------------------------------------------------
-import { buildDialogMessages, readDialog, DIALOG_SCHEMA } from './assistant/llm.js';
-import { understand } from './assistant/intents.js';
-import { renderFacts } from './assistant/facts.js';
+import { buildDialogMessages, readDialog, DIALOG_SCHEMA } from './assistant/llm.js?v=052';
+import { understand } from './assistant/intents.js?v=052';
+import { renderFacts } from './assistant/facts.js?v=052';
 
 const CONV_START = {
   depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85,
@@ -346,7 +346,10 @@ async function onSaid(said) {
   said = String(said || '').trim();
   if (!said) return;
   bubble('me', said);
-  const r = await turn(said, conv, history);
+  $('convStatus').textContent = engine && $('useLlm').checked ? 'Réflexion du LLM…' : '';
+  let r;
+  try { r = await turn(said, conv, history); } catch (e) { $('convStatus').innerHTML = `<span class="ko">Erreur : ${esc(e.message || e)}</span>`; return; }
+  $('convStatus').textContent = '';
   conv = r.state;
   history.push({ said, out: { calls: r.u.calls, facts: r.u.facts, note: r.u.note || '' } });
   history = history.slice(-3);
@@ -430,9 +433,13 @@ $('convBench').addEventListener('click', async () => {
   conv = structuredClone(CONV_START);
   history = [];
   $('convLog').innerHTML = '';
+  const mode = engine && $('useLlm').checked ? `LLM ${currentModel}` : 'analyseur sans LLM (aucun modèle chargé)';
+  $('convStatus').textContent = `Test en cours avec ${mode}…`;
   let ok = 0;
   let total = 0;
-  for (const c of DIALOG_BENCH) {
+  try {
+  for (const [i, c] of DIALOG_BENCH.entries()) {
+    $('convStatus').textContent = `Réplique ${i + 1}/12 : « ${c.said} »… (${mode})`;
     const t0 = performance.now();
     const r = await turn(c.said, conv, history);
     total += performance.now() - t0;
@@ -444,7 +451,12 @@ $('convBench').addEventListener('click', async () => {
     bubble('me', c.said);
     bubble('jarvis', r.reply, `${good ? '✔' : '✘'} ${r.u.source}${r.u.ms ? ` · ${(r.u.ms / 1000).toFixed(1)} s` : ''}`);
   }
-  showConvState();
-  $('convLog').insertAdjacentHTML('afterbegin', `<p><b>${ok}/12 répliques correctes</b> · ${(total / 12000).toFixed(1)} s par réplique · ${engine && $('useLlm').checked ? `LLM ${esc(currentModel)}` : 'analyseur sans LLM'}</p>`);
-  $('convBench').disabled = false;
+  $('convStatus').textContent = '';
+  $('convLog').insertAdjacentHTML('afterbegin', `<p><b>${ok}/12 répliques correctes</b> · ${(total / 12000).toFixed(1)} s par réplique · ${esc(mode)}</p>`);
+  } catch (e) {
+    $('convStatus').innerHTML = `<span class="ko">Test interrompu : ${esc(e.message || e)}</span>`;
+  } finally {
+    showConvState();
+    $('convBench').disabled = false;
+  }
 });

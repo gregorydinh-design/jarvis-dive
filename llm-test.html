@@ -30,12 +30,13 @@
   <header class="top">
     <div>
       <h1>JARVIS <span>LLM</span></h1>
-      <p class="sub">Banc d'essai : un petit modèle dans Safari (WebGPU)</p>
+      <p class="sub">Banc d'essai : un petit modèle dans Safari (WebGPU) · <span id="ver">v0.5.2</span></p>
     </div>
     <a class="pill" href="./" style="text-decoration:none">← App</a>
   </header>
 
   <main>
+    <p id="jsError" class="ko" hidden style="padding:8px 12px;border:1px solid var(--danger);border-radius:10px"></p>
     <section class="card">
       <h2>1. Appareil</h2>
       <p id="gpu" class="stats">Vérification de WebGPU…</p>
@@ -100,12 +101,19 @@
         <button id="convReset" class="ghost" type="button">Nouveau plan</button>
         <button id="convBench" class="ghost" type="button">Tester 12 répliques</button>
       </div>
+      <p id="convStatus" class="stats"></p>
       <div id="convLog" class="conv-log"></div>
     </section>
   </main>
 
   <footer>Page de test. Les calculs viennent toujours du moteur JARVIS ; le modèle ne fait que traduire et commenter.</footer>
 
-  <script type="module" src="llm-test.js"></script>
+  <script>
+    // Sans console sur iPhone : toute erreur JavaScript s'affiche en haut de la page.
+    function showJsError(msg) { var e = document.getElementById('jsError'); if (!e) return; e.hidden = false; e.textContent = 'Erreur : ' + msg; }
+    window.addEventListener('error', function (ev) { showJsError(ev.message + (ev.filename ? ' (' + ev.filename.split('/').pop() + ':' + ev.lineno + ')' : '')); });
+    window.addEventListener('unhandledrejection', function (ev) { showJsError(ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason)); });
+  </script>
+  <script type="module" src="llm-test.js?v=052"></script>
 </body>
 </html>
