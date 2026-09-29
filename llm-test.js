@@ -55,6 +55,40 @@ function checkExpect(st, expect) {
   return bad;
 }
 
+// ---------- Traces de plantage ----------
+// Si iOS tue l'onglet (mémoire), on ne voit rien : on note l'étape en cours pour l'afficher au rechargement.
+const TRACE_KEY = 'jarvis-llm:trace';
+function trace(data) { try { localStorage.setItem(TRACE_KEY, JSON.stringify({ ...data, at: Date.now() })); } catch { /* */ } }
+(() => {
+  let tr = null;
+  try { tr = JSON.parse(localStorage.getItem(TRACE_KEY)); } catch { tr = null; }
+  if (tr && tr.stage !== 'ok') {
+    $('crash').hidden = false;
+    $('crash').textContent = `Le dernier essai s'est interrompu : ${tr.model}, pendant « ${tr.stage === 'infer' ? 'la génération' : tr.text || 'le chargement'} »`
+      + (tr.progress != null ? ` (${Math.round(tr.progress * 100)} %)` : '') + '. Essayez un modèle plus petit.';
+    const opt = [...$('model').options].find((o) => o.value === tr.model);
+    if (opt && opt.previousElementSibling) opt.previousElementSibling.selected = true;
+  }
+})();
+
+async function showStorage() {
+  try {
+    const e = await navigator.storage.estimate();
+    $('storage').textContent = `Utilisé par cette page : ${(e.usage / 1073741824).toFixed(2)} Go (quota ${(e.quota / 1073741824).toFixed(1)} Go).`;
+  } catch { $('storage').textContent = 'Estimation du stockage indisponible.'; }
+}
+showStorage();
+
+$('clear').addEventListener('click', async () => {
+  try {
+    if (engine) { await engine.unload(); engine = null; }
+    for (const k of await caches.keys()) if (/webllm|mlc/i.test(k)) await caches.delete(k);
+    localStorage.removeItem(TRACE_KEY);
+    $('crash').hidden = true;
+  } catch (e) { $('storage').textContent = `Échec : ${e.message}`; return; }
+  showStorage();
+});
+
 // ---------- 1. Appareil ----------
 (async () => {
   if (!('gpu' in navigator)) {
@@ -88,12 +122,17 @@ $('load').addEventListener('click', async () => {
       try { webllm = await import(WEBLLM_URL); } catch { throw new Error('bibliothèque WebLLM injoignable (réseau requis au premier lancement)'); }
     }
     if (engine) await engine.unload();
+    trace({ model, stage: 'load', progress: 0 });
+    let lastTrace = 0;
     engine = await webllm.CreateMLCEngine(model, {
       initProgressCallback: (p) => {
         $('bar').style.width = `${Math.round((p.progress || 0) * 100)}%`;
         $('loadInfo').textContent = p.text;
+        if (Date.now() - lastTrace > 500) { trace({ model, stage: 'load', progress: p.progress, text: p.text }); lastTrace = Date.now(); }
       },
-    });
+    }, { context_window_size: 2048 }); // contexte réduit : moins de mémoire (nos consignes font ~700 jetons)
+    trace({ model, stage: 'ok' });
+    showStorage();
     currentModel = model;
     const s = ((performance.now() - t0) / 1000).toFixed(1);
     $('loadInfo').innerHTML = `<span class="ok">${esc(model)} prêt en ${s} s.</span>`;
@@ -114,7 +153,9 @@ async function complete(messages, { json = false, maxTokens = 256 } = {}) {
     extra_body: { enable_thinking: false },
   };
   if (json) req.response_format = { type: 'json_object', schema: CALLS_SCHEMA };
+  trace({ model: currentModel, stage: 'infer' });
   const r = await engine.chat.completions.create(req);
+  trace({ model: currentModel, stage: 'ok' });
   const ms = performance.now() - t0;
   const u = r.usage || {};
   return {

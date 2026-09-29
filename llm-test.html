@@ -38,8 +38,10 @@
       <h2>2. Modèle</h2>
       <div class="row">
         <select id="model">
+          <option value="Qwen2.5-0.5B-Instruct-q4f16_1-MLC" selected>Qwen2.5 0.5B · ~0,9 Go (commencer ici)</option>
+          <option value="Qwen3-0.6B-q4f16_1-MLC">Qwen3 0.6B · ~1,4 Go</option>
           <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5 1.5B · ~1,6 Go</option>
-          <option value="Qwen3-1.7B-q4f16_1-MLC" selected>Qwen3 1.7B · ~2,0 Go</option>
+          <option value="Qwen3-1.7B-q4f16_1-MLC">Qwen3 1.7B · ~2,0 Go</option>
           <option value="Qwen3.5-2B-q4f16_1-MLC">Qwen3.5 2B · ~2,2 Go</option>
           <option value="Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5 3B · ~2,5 Go</option>
           <option value="Qwen3-4B-q4f16_1-MLC">Qwen3 4B · ~3,4 Go</option>
@@ -47,7 +49,14 @@
         <button id="load" class="primary" type="button" style="padding:0 16px">Charger</button>
       </div>
       <div class="bar"><div id="bar"></div></div>
+      <p id="crash" class="ko" hidden></p>
       <p id="loadInfo" class="stats">Premier chargement : téléchargement du modèle (Wi-Fi conseillé), ensuite il reste en cache.</p>
+    </section>
+
+    <section class="card">
+      <h2>Stockage</h2>
+      <p id="storage" class="stats">…</p>
+      <button id="clear" class="ghost" type="button">Supprimer les modèles téléchargés</button>
     </section>
 
     <section class="card">
