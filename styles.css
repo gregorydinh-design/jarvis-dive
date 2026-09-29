@@ -99,3 +99,8 @@ footer { color: #6d8ea3; font-size: 12px; text-align: center; padding: 8px 12px;
   .tiles { grid-template-columns: repeat(2, 1fr); }
   .gas { grid-template-columns: 44px 1fr 104px 40px; }
 }
+
+.top-right { display: flex; align-items: center; gap: 10px; }
+.lang { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.lang button { background: transparent; color: var(--muted); border: 0; min-width: 44px; min-height: 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; border-radius: 0; }
+.lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }

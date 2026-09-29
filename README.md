@@ -4,6 +4,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 
 - **Moteur** : Bühlmann ZHL-16C + Gradient Factors, JavaScript pur (`engine/`). Tous les calculs de décompression sont faits ici, jamais par le LLM.
 - **Gaz** : OC multi-gaz avec switch libre (chaque gaz de déco est pris à la profondeur que vous choisissez).
+- **Langues** : français / anglais (bouton FR | EN, langue du téléphone par défaut).
 - **Hors ligne** : service worker, installable depuis Safari (Partager → Sur l'écran d'accueil).
 
 > ⚠️ Outil d'aide à la planification en cours de validation. Il ne remplace ni la formation, ni l'ordinateur de plongée, ni le jugement du plongeur. Vérifiez chaque plan avec un second outil (Subsurface, MultiDeco…).
@@ -38,6 +39,8 @@ engine/zhl16c.js   Compartiments, Schreiner, plafonds GF
 engine/gases.js    Mélanges, MOD, END, densité
 engine/oxygen.js   CNS, OTU
 engine/planner.js  Planificateur multi-gaz
+engine/errors.js   Codes d'erreur traduisibles
+i18n.js            Traductions FR / EN
 tests/run.js       Suite de tests (Node 18+)
 index.html, app.js, styles.css, sw.js, manifest.json   PWA
 ```

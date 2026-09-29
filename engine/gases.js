@@ -1,4 +1,5 @@
 // JARVIS DIVE — Gaz respiratoires : parsing, MOD, END, ppO2.
+import { DiveError } from './errors.js';
 
 /**
  * Crée un gaz. o2 et he en fractions (0.21) ou en pourcentages (21).
@@ -7,8 +8,8 @@
 export function makeGas({ name, o2, he = 0, switchDepth = null } = {}) {
   const fo2 = o2 > 1 ? o2 / 100 : o2;
   const fhe = he > 1 ? he / 100 : he;
-  if (!(fo2 > 0 && fo2 <= 1)) throw new Error(`Fraction O2 invalide : ${o2}`);
-  if (fhe < 0 || fo2 + fhe > 1 + 1e-9) throw new Error(`Mélange invalide : O2 ${o2} / He ${he}`);
+  if (!(fo2 > 0 && fo2 <= 1)) throw new DiveError('INVALID_O2', { o2 }, `Fraction O2 invalide : ${o2}`);
+  if (fhe < 0 || fo2 + fhe > 1 + 1e-9) throw new DiveError('INVALID_MIX', { o2, he }, `Mélange invalide : O2 ${o2} / He ${he}`);
   const gas = { o2: round4(fo2), he: round4(fhe), n2: round4(1 - fo2 - fhe), switchDepth };
   gas.name = name || gasName(gas);
   return gas;
@@ -33,7 +34,7 @@ export function parseGas(text, switchDepth = null) {
   if (m) return makeGas({ o2: +m[1] / 100, he: +m[2] / 100, switchDepth });
   m = s.match(/^(?:EAN|NX|NITROX)?(\d{1,3})$/);
   if (m) return makeGas({ o2: +m[1] / 100, switchDepth });
-  throw new Error(`Gaz non reconnu : "${text}"`);
+  throw new DiveError('UNKNOWN_GAS', { text }, `Gaz non reconnu : "${text}"`);
 }
 
 export function ppO2(gas, depth, env) {

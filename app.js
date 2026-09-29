@@ -2,12 +2,16 @@
 import { planDive } from './engine/planner.js';
 import { parseGas, defaultSwitchDepth, mod } from './engine/gases.js';
 import { createEnvironment } from './engine/zhl16c.js';
+import { detectLang, saveLang, makeT } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'jarvis-dive:v2';
 const NUM_FIELDS = ['depth', 'bottomTime', 'gfLow', 'gfHigh', 'descentRate', 'ascentRate', 'lastStop',
   'switchStopMin', 'ppO2Bottom', 'waterDensity', 'sacBottom', 'sacDeco'];
 const DEFAULT_GASES = [{ mix: 'Air', depth: '' }];
+
+let lang = detectLang();
+let t = makeT(lang);
 
 const gasList = $('gases');
 const tpl = $('gasRow');
@@ -38,8 +42,24 @@ function addGasRow({ mix, depth, auto = true }) {
 function refreshRoles() {
   [...gasList.children].forEach((row, i) => {
     row.classList.toggle('bottom', i === 0);
-    row.querySelector('.gas-role').textContent = i === 0 ? 'Fond' : 'Déco';
+    row.querySelector('.gas-role').textContent = i === 0 ? t('roleBottom') : t('roleDeco');
+    row.querySelector('.gas-switch-label').textContent = t('switchLabel');
+    row.querySelector('.gas-mix').setAttribute('aria-label', t('mixLabel'));
+    row.querySelector('.gas-depth').setAttribute('aria-label', t('switchDepthLabel'));
+    row.querySelector('.gas-del').setAttribute('aria-label', t('remove'));
   });
+}
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  refreshRoles();
+}
+
+// Traduit une erreur du moteur (code + paramètres) ou retombe sur son message.
+function errorText(e) {
+  return e && e.code ? t('e_' + e.code, e.params) : String(e && e.message ? e.message : e);
 }
 
 function readGases() {
@@ -48,7 +68,7 @@ function readGases() {
     const depthInput = row.querySelector('.gas-depth');
     try {
       const gas = parseGas(mixInput.value, i === 0 ? null : parseFloat(depthInput.value));
-      if (i > 0 && !(gas.switchDepth >= 0)) throw new Error(`Profondeur de switch manquante pour ${gas.name}`);
+      if (i > 0 && !(gas.switchDepth >= 0)) throw Object.assign(new Error('SWITCH_MISSING'), { code: 'SWITCH_MISSING', params: { gas: gas.name } });
       mixInput.classList.remove('invalid');
       return gas;
     } catch (e) {
@@ -98,7 +118,7 @@ function profileSvg(plan) {
   const path = pts.map(([t, d], i) => `${i ? 'L' : 'M'}${x(t).toFixed(1)},${y(d).toFixed(1)}`).join(' ');
   const gridD = [0, Math.round(maxD / 2), maxD];
   const labels = plan.stops.map((s) => `<text x="${x(s.runtime - s.duration / 2).toFixed(1)}" y="${(y(s.depth) - 6).toFixed(1)}" text-anchor="middle" font-size="11" fill="#8fb0c4">${s.duration}'</text>`).join('');
-  return `<svg class="profile" viewBox="0 0 ${W} ${H}" role="img" aria-label="Profil de plongée">
+  return `<svg class="profile" viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('profileAria')}">
     ${gridD.map((d) => `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#1f4663" stroke-width="1"/><text x="${L - 6}" y="${y(d) + 4}" text-anchor="end" font-size="11" fill="#6d8ea3">${d}</text>`).join('')}
     <path d="${path} L${x(maxT)},${y(0)} L${x(0)},${y(0)} Z" fill="rgba(56,217,200,0.10)"/>
     <path d="${path}" fill="none" stroke="#38d9c8" stroke-width="2.5" stroke-linejoin="round"/>
@@ -111,38 +131,38 @@ function render(plan, cfg) {
   const e = env();
   const rows = [];
   for (const s of plan.segments) {
-    if (s.kind === 'switch') rows.push(`<tr class="switch"><td colspan="4">↳ Switch ${esc(s.gas)} à ${s.from} m</td></tr>`);
+    if (s.kind === 'switch') rows.push(`<tr class="switch"><td colspan="4">${esc(t('switchRow', { gas: s.gas, depth: s.from }))}</td></tr>`);
     if (s.kind === 'stop') rows.push(`<tr><td>${s.from} m</td><td class="num">${s.duration} min</td><td class="num">${fmt(s.runtime)}</td><td>${esc(s.gas)}</td></tr>`);
   }
   const stopsTable = rows.length
-    ? `<table><thead><tr><th>Palier</th><th class="num">Durée</th><th class="num">Runtime</th><th>Gaz</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
-    : `<p class="meta">Aucun palier obligatoire. NDL restant en fin de fond : <b>${plan.ndl} min</b> (GF ${cfg.gfHigh}).</p>`;
+    ? `<table><thead><tr><th>${t('stop')}</th><th class="num">${t('duration')}</th><th class="num">Runtime</th><th>${t('gas')}</th></tr></thead><tbody>${rows.join('')}</tbody></table>`
+    : `<p class="meta">${t('noStop', { ndl: plan.ndl, gf: cfg.gfHigh })}</p>`;
 
-  const gasTable = `<table><thead><tr><th>Gaz</th><th class="num">MOD 1.4 / 1.6</th><th class="num">Conso.</th></tr></thead><tbody>${
+  const gasTable = `<table><thead><tr><th>${t('gas')}</th><th class="num">MOD 1.4 / 1.6</th><th class="num">${t('consumption')}</th></tr></thead><tbody>${
     plan.gases.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${fmt(mod(g, 1.4, e))} / ${fmt(mod(g, 1.6, e))} m</td><td class="num">${g.liters} L</td></tr>`).join('')
   }</tbody></table>`;
 
   const warnings = plan.warnings.length
-    ? `<ul class="warnings">${plan.warnings.map((w) => `<li class="${w.level}">${esc(w.message)}</li>`).join('')}</ul>`
+    ? `<ul class="warnings">${plan.warnings.map((w) => `<li class="${w.level}">${esc(w.params ? t('w_' + w.code, w.params) : w.message)}</li>`).join('')}</ul>`
     : '';
 
   $('result').innerHTML = `
-    <h2>Plan · ${cfg.depth} m / ${cfg.bottomTime} min · GF ${cfg.gfLow}/${cfg.gfHigh}</h2>
+    <h2>${t('plan')} · ${cfg.depth} m / ${cfg.bottomTime} min · GF ${cfg.gfLow}/${cfg.gfHigh}</h2>
     <div class="tiles">
-      <div class="tile hero"><b>${fmt(plan.runtime)}</b><span>Runtime min</span></div>
-      <div class="tile"><b>${fmt(plan.tts)}</b><span>TTS min</span></div>
-      <div class="tile"><b>${plan.decoTime}</b><span>Paliers min</span></div>
-      <div class="tile"><b>${plan.firstStop ?? '—'}</b><span>1er palier m</span></div>
+      <div class="tile hero"><b>${fmt(plan.runtime)}</b><span>${t('runtime')}</span></div>
+      <div class="tile"><b>${fmt(plan.tts)}</b><span>${t('tts')}</span></div>
+      <div class="tile"><b>${plan.decoTime}</b><span>${t('stopsMin')}</span></div>
+      <div class="tile"><b>${plan.firstStop ?? '—'}</b><span>${t('firstStop')}</span></div>
       <div class="tile"><b>${fmt(plan.cns)}%</b><span>CNS</span></div>
       <div class="tile"><b>${fmt(plan.otu)}</b><span>OTU</span></div>
     </div>
     ${warnings}
     ${profileSvg(plan)}
-    <h3>Paliers</h3>
+    <h3>${t('stops')}</h3>
     ${stopsTable}
-    <h3>Gaz</h3>
+    <h3>${t('gases')}</h3>
     ${gasTable}
-    <p class="meta">END fond ${fmt(plan.endBottom)} m · densité ${fmt(plan.densityBottom, 1)} g/L · ppO2 max ${fmt(plan.maxPpO2, 2)} bar</p>`;
+    <p class="meta">${t('meta', { end: fmt(plan.endBottom), rho: fmt(plan.densityBottom, 1), pp: fmt(plan.maxPpO2, 2) })}</p>`;
 }
 
 function update() {
@@ -152,11 +172,19 @@ function update() {
     cfg = readConfig();
     render(planDive(cfg), cfg);
   } catch (e) {
-    $('result').innerHTML = `<h2>Plan</h2><p class="error">${esc(e.message)}</p>`;
+    $('result').innerHTML = `<h2>${t('plan')}</h2><p class="error">${esc(errorText(e))}</p>`;
   }
 }
 
 restore();
+applyLang();
+document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => {
+  lang = b.dataset.lang;
+  t = makeT(lang);
+  saveLang(lang);
+  applyLang();
+  update();
+}));
 $('addGas').addEventListener('click', () => {
   const mix = gasList.children.length === 1 ? 'EAN50' : 'O2';
   addGasRow({ mix, depth: defaultSwitchDepth(parseGas(mix), env()) });

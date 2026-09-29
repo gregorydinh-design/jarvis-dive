@@ -8,6 +8,7 @@
 import { createEnvironment, Tissues, loadSegment, ceilingPressure } from './zhl16c.js';
 import { makeGas, ppO2, mod, end, density } from './gases.js';
 import { oxygenExposure } from './oxygen.js';
+import { DiveError } from './errors.js';
 
 export const DEFAULTS = Object.freeze({
   gfLow: 85,
@@ -43,10 +44,10 @@ export function planDive(input) {
   const gfHigh = cfg.gfHigh / 100;
   const rateShallow = cfg.ascentRateShallow || cfg.ascentRate;
 
-  if (!(cfg.depth > 0)) throw new Error('Profondeur invalide');
-  if (!(cfg.bottomTime > 0)) throw new Error('Temps fond invalide');
-  if (!cfg.gases || cfg.gases.length === 0) throw new Error('Au moins un gaz est requis');
-  if (gfLow <= 0 || gfHigh <= 0 || gfLow > gfHigh || gfHigh > 1) throw new Error('Gradient factors invalides');
+  if (!(cfg.depth > 0)) throw new DiveError('INVALID_DEPTH', {}, 'Profondeur invalide');
+  if (!(cfg.bottomTime > 0)) throw new DiveError('INVALID_TIME', {}, 'Temps fond invalide');
+  if (!cfg.gases || cfg.gases.length === 0) throw new DiveError('NO_GAS', {}, 'Au moins un gaz est requis');
+  if (gfLow <= 0 || gfHigh <= 0 || gfLow > gfHigh || gfHigh > 1) throw new DiveError('INVALID_GF', {}, 'Gradient factors invalides');
 
   const gases = cfg.gases.map((g, i) => {
     const gas = g.o2 !== undefined && g.n2 !== undefined ? { ...g } : makeGas(g);
@@ -100,7 +101,8 @@ export function planDive(input) {
   const bottomGas = gases[0];
   const descentTime = cfg.depth / cfg.descentRate;
   if (descentTime > cfg.bottomTime + EPS) {
-    throw new Error(`Temps fond (${cfg.bottomTime} min) inférieur au temps de descente (${descentTime.toFixed(1)} min)`);
+    throw new DiveError('DESCENT_TOO_LONG', { bottomTime: cfg.bottomTime, descent: descentTime },
+      `Temps fond (${cfg.bottomTime} min) inférieur au temps de descente (${descentTime.toFixed(1)} min)`);
   }
   addSegment('descent', 0, cfg.depth, descentTime, 0);
   addSegment('bottom', cfg.depth, cfg.depth, cfg.bottomTime - descentTime, 0);
@@ -113,16 +115,19 @@ export function planDive(input) {
   const ppBottom = ppO2(bottomGas, cfg.depth, env);
   if (ppBottom > cfg.ppO2Bottom + EPS) {
     warnings.push({ level: ppBottom > 1.6 ? 'danger' : 'warn', code: 'PPO2_BOTTOM',
+      params: { pp: ppBottom, max: cfg.ppO2Bottom, gas: bottomGas.name, mod: mod(bottomGas, cfg.ppO2Bottom, env) },
       message: `ppO2 fond ${ppBottom.toFixed(2)} bar > ${cfg.ppO2Bottom} (MOD ${bottomGas.name} : ${mod(bottomGas, cfg.ppO2Bottom, env).toFixed(1)} m)` });
   }
   const endBottom = end(bottomGas, cfg.depth, env, { o2Narcotic: cfg.o2Narcotic });
   if (endBottom > 30 + EPS) {
     warnings.push({ level: endBottom > 40 ? 'warn' : 'info', code: 'END',
+      params: { end: endBottom, gas: bottomGas.name },
       message: `END ${endBottom.toFixed(0)} m (narcose) avec ${bottomGas.name}` });
   }
   const rho = density(bottomGas, cfg.depth, env);
   if (rho > 5.2) {
     warnings.push({ level: 'warn', code: 'DENSITY',
+      params: { rho },
       message: `Densité du gaz ${rho.toFixed(1)} g/L au fond (recommandé ≤ 5.2, max 6.2)` });
   }
   gases.slice(1).forEach((g) => {
@@ -130,6 +135,7 @@ export function planDive(input) {
     const pp = ppO2(g, g.switchDepth, env);
     if (pp > cfg.ppO2Deco + cfg.ppO2Tolerance) {
       warnings.push({ level: 'danger', code: 'PPO2_SWITCH',
+        params: { gas: g.name, depth: g.switchDepth, pp, max: cfg.ppO2Deco, mod: mod(g, cfg.ppO2Deco, env) },
         message: `${g.name} au switch ${g.switchDepth} m : ppO2 ${pp.toFixed(2)} bar > ${cfg.ppO2Deco} (MOD ${mod(g, cfg.ppO2Deco, env).toFixed(1)} m)` });
     }
   });
@@ -169,7 +175,7 @@ export function planDive(input) {
   let decoMinutes = 0;
   let guard = 0;
   while (depth > EPS) {
-    if (++guard > 100000) throw new Error('Boucle de remontée non convergente');
+    if (++guard > 100000) throw new DiveError('NO_CONVERGENCE', {}, 'Boucle de remontée non convergente');
     const target = nextTarget(depth);
     const trial = tissues.clone();
     for (const [a, b, t] of travelParts(depth, target)) loadSegment(trial, env, a, b, t, gases[gi]);
@@ -199,7 +205,7 @@ export function planDive(input) {
     }
     addSegment('stop', depth, depth, 1, gi);
     decoMinutes += 1;
-    if (decoMinutes > cfg.maxDecoMinutes) throw new Error('Décompression excessive : plan abandonné');
+    if (decoMinutes > cfg.maxDecoMinutes) throw new DiveError('EXCESSIVE_DECO', {}, 'Décompression excessive : plan abandonné');
   }
 
   // ---------- Synthèse ----------
@@ -207,9 +213,9 @@ export function planDive(input) {
     .filter((s) => s.kind === 'stop')
     .map((s) => ({ depth: s.from, duration: s.duration, runtime: s.runtime, gas: s.gas }));
 
-  if (cns > 100) warnings.push({ level: 'danger', code: 'CNS', message: `CNS ${cns.toFixed(0)} % > 100 %` });
-  else if (cns > 80) warnings.push({ level: 'warn', code: 'CNS', message: `CNS ${cns.toFixed(0)} % > 80 %` });
-  if (maxPpO2 > 1.6 + cfg.ppO2Tolerance) warnings.push({ level: 'danger', code: 'PPO2_MAX', message: `ppO2 max ${maxPpO2.toFixed(2)} bar` });
+  if (cns > 100) warnings.push({ level: 'danger', code: 'CNS', params: { cns, limit: 100 }, message: `CNS ${cns.toFixed(0)} % > 100 %` });
+  else if (cns > 80) warnings.push({ level: 'warn', code: 'CNS', params: { cns, limit: 80 }, message: `CNS ${cns.toFixed(0)} % > 80 %` });
+  if (maxPpO2 > 1.6 + cfg.ppO2Tolerance) warnings.push({ level: 'danger', code: 'PPO2_MAX', params: { pp: maxPpO2 }, message: `ppO2 max ${maxPpO2.toFixed(2)} bar` });
 
   return {
     input: { depth: cfg.depth, bottomTime: cfg.bottomTime, gfLow: cfg.gfLow, gfHigh: cfg.gfHigh, lastStop: cfg.lastStop },
