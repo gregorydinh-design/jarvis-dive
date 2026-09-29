@@ -4,6 +4,7 @@
 // Les appels proposés passent ensuite par applyToolCalls (validation) : le LLM ne touche jamais au formulaire.
 
 import { TOOL_NAMES } from './commands.js';
+import { FACT_IDS } from './facts.js';
 
 // Schéma imposé à la génération (sortie contrainte) : le modèle ne peut produire que ce format.
 export const CALLS_SCHEMA = JSON.stringify({
@@ -102,4 +103,94 @@ ${planText}
 En t'appuyant uniquement sur ce plan, réponds à ma question : ${question}`,
     },
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Mode conversation : le LLM comprend et CHOISIT (commandes + faits), JARVIS calcule et parle.
+// ---------------------------------------------------------------------------
+const CALL_ITEM = JSON.parse(CALLS_SCHEMA).properties.calls.items;
+
+export const DIALOG_SCHEMA = JSON.stringify({
+  type: 'object',
+  properties: {
+    calls: { type: 'array', items: CALL_ITEM },
+    facts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', enum: FACT_IDS },
+          gas: { type: 'string' },
+          minutes: { type: 'number' },
+          meters: { type: 'number' },
+        },
+        required: ['id'],
+      },
+    },
+    note: { type: 'string' },
+  },
+  required: ['calls', 'facts', 'note'],
+});
+
+const DIALOG_SYSTEM = `Tu es l'oreille de JARVIS, planificateur de plongée. Le plongeur te parle librement.
+Tu ne réponds JAMAIS avec des chiffres : tu choisis ce que JARVIS doit faire et dire. JARVIS calcule et parle.
+Réponds uniquement en JSON : {"calls":[...],"facts":[...],"note":"..."}.
+
+calls = modifications du plan :
+- set_dive {depth, bottom_time, add_depth, add_time}
+- set_gf {low, high}
+- set_bottom_gas {mix} ; add_deco_gas {mix, switch_depth} ; remove_gas {mix}
+- set_cylinder {gas, volume, pressure} ("bottom" = bloc fond ; bi 12 = 24)
+
+facts = informations à annoncer :
+- summary : résumé du plan ; stops : tous les paliers ; first_stop ; longest_stop
+- tts : durée de remontée ; runtime : durée totale
+- gas_bottom : gaz fond restant ; gas_all : tous les blocs ; min_gas : gaz minimum (sécurité)
+- oxygen : CNS et OTU ; switches : changements de gaz ; alerts : alertes ; ndl : marge sans palier
+- plus_time {minutes} : « et si je reste N minutes de plus ? » (question, sans modifier le plan)
+- plus_depth {meters} : « et si je descends N mètres plus bas ? »
+- lost_gas {gas} : « et si je perds tel gaz ? »
+
+note = phrase courte SANS AUCUN CHIFFRE (salutation, ou "je n'ai pas compris"), sinon "".
+Après une modification du plan, ajoute toujours le fait "summary".
+Mélanges : "Air", "EAN32", "O2" (oxygène, oxy), "TX18/45".`;
+
+const DIALOG_EXAMPLES = [
+  ['est-ce que mon gaz fond tient ?', { calls: [], facts: [{ id: 'gas_bottom' }, { id: 'min_gas' }], note: '' }],
+  ["et si je perds l'oxy ?", { calls: [], facts: [{ id: 'lost_gas', gas: 'O2' }], note: '' }],
+  ['ok rajoute cinq minutes', { calls: [{ name: 'set_dive', args: { add_time: 5 } }], facts: [{ id: 'summary' }], note: '' }],
+  ['et avec dix minutes de plus ça donne quoi ?', { calls: [], facts: [{ id: 'plus_time', minutes: 10 }], note: '' }],
+  ['salut Jarvis', { calls: [], facts: [], note: "Salut, je t'écoute." }],
+];
+
+/**
+ * @param {string} text phrase du plongeur
+ * @param {object} state état du formulaire
+ * @param {Array<{said, out}>} history derniers échanges (out = JSON produit)
+ */
+export function buildDialogMessages(text, state, history = []) {
+  const messages = [{ role: 'system', content: DIALOG_SYSTEM }];
+  for (const [said, out] of DIALOG_EXAMPLES) {
+    messages.push({ role: 'user', content: said });
+    messages.push({ role: 'assistant', content: JSON.stringify(out) });
+  }
+  for (const h of history.slice(-3)) {
+    messages.push({ role: 'user', content: h.said });
+    messages.push({ role: 'assistant', content: JSON.stringify(h.out) });
+  }
+  messages.push({ role: 'user', content: `${describeState(state)}\n${text}` });
+  return messages;
+}
+
+/** Relit la réponse : appels connus, faits connus, note sans chiffre. */
+export function readDialog(content) {
+  const txt = String(content).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  const obj = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+  const calls = readCalls(JSON.stringify({ calls: obj.calls || [] }));
+  const facts = (obj.facts || [])
+    .filter((f) => f && FACT_IDS.includes(f.id))
+    .map((f) => Object.fromEntries(Object.entries(f).filter(([, v]) => v !== null && v !== undefined && v !== '')));
+  let note = typeof obj.note === 'string' ? obj.note.trim() : '';
+  if (/\d/.test(note)) note = ''; // garde-fou : aucun chiffre ne vient du modèle
+  return { calls, facts, note };
 }

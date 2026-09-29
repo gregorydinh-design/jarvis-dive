@@ -246,3 +246,205 @@ $('ask').addEventListener('click', async () => {
     $('ask').disabled = false;
   }
 });
+
+// ---------------------------------------------------------------------------
+// 5. Conversation vocale : le LLM comprend et choisit, JARVIS calcule et parle.
+// ---------------------------------------------------------------------------
+import { buildDialogMessages, readDialog, DIALOG_SCHEMA } from './assistant/llm.js';
+import { understand } from './assistant/intents.js';
+import { renderFacts } from './assistant/facts.js';
+
+const CONV_START = {
+  depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85,
+  gases: [
+    { mix: 'EAN27', switchDepth: null, volume: 24, startPressure: 200 },
+    { mix: 'EAN47', switchDepth: 12, volume: 7, startPressure: 200 },
+    { mix: 'O2', switchDepth: 6, volume: 7, startPressure: 200 },
+  ],
+};
+let conv = structuredClone(CONV_START);
+let history = [];
+
+const toInput = (st) => ({
+  depth: st.depth, bottomTime: st.bottomTime, gfLow: st.gfLow, gfHigh: st.gfHigh,
+  gases: st.gases.map((g, i) => ({ ...parseGas(g.mix, i ? g.switchDepth : null), volume: g.volume, startPressure: g.startPressure })),
+});
+
+function showConvState() {
+  $('convState').textContent = `Plan en cours : ${conv.depth} m, ${conv.bottomTime} min, GF ${conv.gfLow}/${conv.gfHigh}, `
+    + conv.gases.map((g, i) => (i ? `${g.mix}@${g.switchDepth} m` : `${g.mix} (${g.volume} L)`)).join(', ');
+}
+showConvState();
+
+function bubble(cls, text, meta = '') {
+  $('convLog').insertAdjacentHTML('afterbegin', `<div class="bubble ${cls}">${esc(text)}${meta ? `<small>${esc(meta)}</small>` : ''}</div>`);
+}
+
+function speakFr(text) {
+  if (!$('useVoice').checked || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'fr-FR';
+  speechSynthesis.speak(u);
+}
+
+/** Comprend une phrase : LLM si disponible et coché, sinon (ou en cas d'échec) l'analyseur. */
+async function interpret(said, state, hist) {
+  const fallback = understand(said, state);
+  if (!engine || !$('useLlm').checked) return { ...fallback, note: '', source: 'analyseur', ms: 0 };
+  try {
+    const t0 = performance.now();
+    trace({ model: currentModel, stage: 'infer' });
+    const r = await engine.chat.completions.create({
+      messages: buildDialogMessages(said, state, hist),
+      temperature: 0,
+      max_tokens: 200,
+      extra_body: { enable_thinking: false },
+      response_format: { type: 'json_object', schema: DIALOG_SCHEMA },
+    });
+    trace({ model: currentModel, stage: 'ok' });
+    const out = readDialog(r.choices[0].message.content || '');
+    const ms = performance.now() - t0;
+    if (!out.calls.length && !out.facts.length && !out.note) return { ...fallback, note: '', source: 'analyseur (LLM vide)', ms };
+    return { ...out, source: 'LLM', ms };
+  } catch (e) {
+    return { ...fallback, note: '', source: `analyseur (LLM : ${e.message})`, ms: 0 };
+  }
+}
+
+/** Un tour de conversation complet : comprendre → appliquer → calculer → répondre. */
+async function turn(said, state, hist) {
+  const u = await interpret(said, state, hist);
+  let next = state;
+  const parts = [];
+  if (u.calls.length) {
+    try {
+      const r = applyToolCalls(state, u.calls);
+      next = r.state;
+      if (r.changes.length) parts.push(`Compris : ${r.changes.map((c) => t(c.code, c.params)).join(', ')}.`);
+    } catch (e) {
+      const p = { ...e.params };
+      if (p.field) p.field = t('f_' + p.field);
+      parts.push(`Je ne peux pas : ${e.code && e.code.startsWith('x_') ? t(e.code, p) : e.code ? t('e_' + e.code, e.params) : e.message}.`);
+    }
+  }
+  const facts = u.facts.length ? u.facts : (u.calls.length ? [{ id: 'summary' }] : []);
+  if (u.note) parts.push(u.note);
+  if (facts.length) {
+    try {
+      const input = toInput(next);
+      parts.push(renderFacts(facts, { plan: planDive(input), input }, 'fr'));
+    } catch (e) {
+      parts.push(`Plan impossible : ${e.code ? t('e_' + e.code, e.params) : e.message}.`);
+    }
+  }
+  if (!parts.length) parts.push("Je n'ai pas compris. Essaie par exemple : « mon gaz fond tient ? » ou « rajoute 5 minutes ».");
+  return { state: next, reply: parts.join(' '), u };
+}
+
+async function onSaid(said) {
+  said = String(said || '').trim();
+  if (!said) return;
+  bubble('me', said);
+  const r = await turn(said, conv, history);
+  conv = r.state;
+  history.push({ said, out: { calls: r.u.calls, facts: r.u.facts, note: r.u.note || '' } });
+  history = history.slice(-3);
+  showConvState();
+  bubble('jarvis', r.reply, `${r.u.source}${r.u.ms ? ` · ${(r.u.ms / 1000).toFixed(1)} s` : ''}`);
+  speakFr(r.reply);
+}
+
+$('convForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const v = $('convInput').value;
+  $('convInput').value = '';
+  $('convInput').blur();
+  onSaid(v);
+});
+$('convReset').addEventListener('click', () => {
+  conv = structuredClone(CONV_START);
+  history = [];
+  $('convLog').innerHTML = '';
+  showConvState();
+});
+
+// Reconnaissance vocale de Safari (si disponible). Sinon : micro du clavier dans le champ texte.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+if (!SR) {
+  $('talk').textContent = '🎙 Reconnaissance vocale indisponible : utilisez le micro du clavier';
+  $('talk').disabled = true;
+} else {
+  $('talk').addEventListener('click', () => {
+    if (rec) { rec.stop(); return; }
+    speechSynthesis.cancel(); // débloque aussi la synthèse vocale sur iOS (geste utilisateur)
+    rec = new SR();
+    rec.lang = 'fr-FR';
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    let finalText = '';
+    $('talk').classList.add('on');
+    $('talk').textContent = '● J\'écoute… (touchez pour arrêter)';
+    rec.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript;
+        else interim += ev.results[i][0].transcript;
+      }
+      $('convInput').value = finalText || interim;
+    };
+    rec.onerror = (ev) => {
+      bubble('jarvis', `Reconnaissance vocale : erreur « ${ev.error} »${ev.error === 'network' ? ' (réseau requis ?)' : ''}.`, 'système');
+    };
+    rec.onend = () => {
+      $('talk').classList.remove('on');
+      $('talk').textContent = '🎙 Parler';
+      const said = finalText || $('convInput').value;
+      $('convInput').value = '';
+      rec = null;
+      onSaid(said);
+    };
+    rec.start();
+  });
+}
+
+// Banc : une conversation de 12 répliques enchaînées, notée réplique par réplique.
+const DIALOG_BENCH = [
+  { said: 'salut Jarvis', ok: (u) => !u.calls.length },
+  { said: 'est-ce que mon gaz fond tient la route ?', ok: (u) => u.facts.some((f) => f.id === 'gas_bottom' || f.id === 'min_gas') },
+  { said: "c'est quoi mon palier le plus long ?", ok: (u) => u.facts.some((f) => f.id === 'longest_stop' || f.id === 'stops') },
+  { said: "et si je perds l'oxy ?", ok: (u) => u.facts.some((f) => f.id === 'lost_gas' && /o2|oxy/i.test(f.gas || '')) && !u.calls.length },
+  { said: 'et avec dix minutes de plus ?', ok: (u) => u.facts.some((f) => f.id === 'plus_time' && f.minutes === 10) && !u.calls.length },
+  { said: 'bon ok, rajoute cinq minutes', ok: (u, s) => s.bottomTime === 30 },
+  { said: 'ça me fait sortir à combien de temps ?', ok: (u) => u.facts.some((f) => ['runtime', 'summary', 'tts'].includes(f.id)) },
+  { said: "finalement l'épave est à 45 mètres", ok: (u, s) => s.depth === 45 },
+  { said: 'il y a des alertes ?', ok: (u) => u.facts.some((f) => f.id === 'alerts') },
+  { said: 'mets le fond en bi 15', ok: (u, s) => s.gases[0].volume === 30 },
+  { said: 'où est-ce que je change de gaz ?', ok: (u) => u.facts.some((f) => f.id === 'switches') },
+  { said: 'et mon CNS ?', ok: (u) => u.facts.some((f) => f.id === 'oxygen') },
+];
+
+$('convBench').addEventListener('click', async () => {
+  $('convBench').disabled = true;
+  conv = structuredClone(CONV_START);
+  history = [];
+  $('convLog').innerHTML = '';
+  let ok = 0;
+  let total = 0;
+  for (const c of DIALOG_BENCH) {
+    const t0 = performance.now();
+    const r = await turn(c.said, conv, history);
+    total += performance.now() - t0;
+    const good = !!c.ok(r.u, r.state);
+    if (good) ok++;
+    conv = r.state;
+    history.push({ said: c.said, out: { calls: r.u.calls, facts: r.u.facts, note: r.u.note || '' } });
+    history = history.slice(-3);
+    bubble('me', c.said);
+    bubble('jarvis', r.reply, `${good ? '✔' : '✘'} ${r.u.source}${r.u.ms ? ` · ${(r.u.ms / 1000).toFixed(1)} s` : ''}`);
+  }
+  showConvState();
+  $('convLog').insertAdjacentHTML('afterbegin', `<p><b>${ok}/12 répliques correctes</b> · ${(total / 12000).toFixed(1)} s par réplique · ${engine && $('useLlm').checked ? `LLM ${esc(currentModel)}` : 'analyseur sans LLM'}</p>`);
+  $('convBench').disabled = false;
+});

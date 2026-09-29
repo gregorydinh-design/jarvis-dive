@@ -17,6 +17,13 @@
     .case b { font-weight: 600; }
     textarea { width: 100%; min-height: 64px; font: inherit; font-size: 16px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
     .stats { font-size: 13px; color: var(--muted); }
+    .talk { width: 100%; min-height: 72px; font-size: 22px; border-radius: 16px; }
+    .talk.on { background: var(--danger); color: #fff; }
+    .conv-log { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .bubble { padding: 8px 12px; border-radius: 14px; font-size: 15px; max-width: 90%; }
+    .bubble.me { align-self: flex-end; background: var(--panel-2); }
+    .bubble.jarvis { align-self: flex-start; background: rgba(56,217,200,0.12); border: 1px solid rgba(56,217,200,0.35); }
+    .bubble small { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -76,6 +83,24 @@
         <button id="ask" class="primary" type="button" style="padding:0 16px" disabled>Demander</button>
       </div>
       <div id="askOut"></div>
+    </section>
+    <section class="card" id="conv">
+      <h2>5. Conversation vocale</h2>
+      <p id="convState" class="stats"></p>
+      <div class="row">
+        <button id="talk" class="primary talk" type="button">🎙 Parler</button>
+      </div>
+      <form id="convForm" class="row" style="margin-top:8px">
+        <input id="convInput" type="text" enterkeyhint="send" autocomplete="off" placeholder="…ou dictez avec le clavier" style="flex:1;font-size:16px">
+        <button class="ghost" type="submit">Envoyer</button>
+      </form>
+      <div class="row" style="margin-top:8px">
+        <label class="inline" style="font-size:14px"><input id="useLlm" type="checkbox" checked style="width:auto;min-height:0"> Utiliser le LLM</label>
+        <label class="inline" style="font-size:14px"><input id="useVoice" type="checkbox" checked style="width:auto;min-height:0"> Réponse vocale</label>
+        <button id="convReset" class="ghost" type="button">Nouveau plan</button>
+        <button id="convBench" class="ghost" type="button">Tester 12 répliques</button>
+      </div>
+      <div id="convLog" class="conv-log"></div>
     </section>
   </main>
 

@@ -6,6 +6,9 @@ import { planDive } from '../engine/planner.js';
 import { contingencyPlans, withPreviousDive, surfaceInterval, cnsAfterInterval } from '../engine/scenarios.js';
 import { applyToolCalls, applyToolCall, TOOLS } from '../assistant/commands.js';
 import { parseCommand } from '../assistant/parser.js';
+import { understand } from '../assistant/intents.js';
+import { renderFacts } from '../assistant/facts.js';
+import { readDialog } from '../assistant/llm.js';
 
 let failed = 0;
 let passed = 0;
@@ -255,6 +258,28 @@ console.log('\n10. Commandes vocales : analyseur + outils');
   const fromVoice = planDive({ ...full, gases: full.gases.map((g) => ({ ...parseGas(g.mix, g.switchDepth), volume: g.volume, startPressure: g.startPressure })) });
   const byHand = planDive({ depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [parseGas('EAN27'), parseGas('EAN47', 12), parseGas('O2', 6)] });
   check('Plan vocal = plan manuel', fromVoice.runtime === byHand.runtime && fromVoice.decoTime === byHand.decoTime);
+}
+
+
+console.log('\n11. Conversation : questions → faits calculés');
+{
+  const st = { depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [{ mix: 'EAN27' }, { mix: 'EAN47', switchDepth: 12 }, { mix: 'O2', switchDepth: 6 }] };
+  const input = { depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [{ ...parseGas('EAN27'), volume: 24, startPressure: 200 }, { ...parseGas('EAN47', 12), volume: 7, startPressure: 200 }, { ...parseGas('O2', 6), volume: 7, startPressure: 200 }] };
+  const plan = planDive(input);
+  const ids = (q) => understand(q, st).facts.map((f) => f.id).join(',');
+  check('« mon gaz fond tient ? »', ids('est-ce que mon gaz fond tient ?') === 'gas_bottom,min_gas');
+  check('« palier le plus long ? »', ids('quel est le palier le plus long ?') === 'longest_stop');
+  check('« et si je perds l\'oxy ? » = scénario, pas une commande', (() => { const u = understand("et si je perds l'oxy ?", st); return u.facts[0].id === 'lost_gas' && u.facts[0].gas === 'O2' && !u.calls.length; })());
+  check('« et avec 10 minutes de plus ? » = scénario sans modifier', (() => { const u = understand('et avec 10 minutes de plus ?', st); return u.facts[0].minutes === 10 && !u.calls.length; })());
+  check('« rajoute 5 minutes » = commande', (() => { const u = understand('rajoute 5 minutes', st); return u.calls.length === 1 && !u.facts.length; })());
+  const txt = renderFacts([{ id: 'gas_bottom' }, { id: 'min_gas' }], { plan, input });
+  check('Réponse gaz fond : bons chiffres, bon gaz', txt.includes('nitrox 27') && txt.includes(`${Math.round(plan.gases[0].endPressure)} bars`) && !txt.includes('nitrox 47'), txt);
+  const lost = renderFacts([{ id: 'lost_gas', gas: 'O2' }], { plan, input });
+  const ref = contingencyPlans(input).find((x) => x.gas === 'O2').plan;
+  check('Réponse perte O2 = plan de secours du moteur', lost.includes(`${Math.round(ref.tts)} minutes`), lost);
+  check('Alerte annoncée si réserve franchie', renderFacts([{ id: 'plus_time', minutes: 10 }], { plan, input }).includes('Attention'));
+  check('Note du LLM contenant un chiffre supprimée', readDialog('{"calls":[],"facts":[],"note":"il te reste 91 bars"}').note === '');
+  check('Fait inconnu ignoré', readDialog('{"calls":[],"facts":[{"id":"hack"},{"id":"tts"}],"note":""}').facts.length === 1);
 }
 
 console.log(`\n${passed} réussis, ${failed} échoué(s)\n`);
