@@ -28,7 +28,7 @@ const TXT = {
       ? `${cap(say(g.name, 'fr'))} : ${r(Math.max(0, g.endPressure))} bars en sortie${g.endPressure < reserve ? `, sous la réserve de ${reserve} bars` : ''}.`
       : `${cap(say(g.name, 'fr'))} : bloc non renseigné.`),
     min_gas: (p) => (p.minGas.bar == null ? 'Gaz minimum : bloc fond non renseigné.'
-      : `Gaz minimum : il faut ${r(p.minGas.bar)} bars de ${say(p.gases[0].name, 'fr')} en fin de fond, tu en auras ${r(Math.max(0, p.minGas.pressureAtBottomEnd))}. ${p.minGas.ok ? `Marge de ${r(p.minGas.pressureAtBottomEnd - p.minGas.bar)} bars.` : 'Insuffisant.'}`),
+      : `Gaz minimum : il faut ${r(p.minGas.bar)} bars ${deFr(say(p.gases[0].name, 'fr'))} en fin de fond, tu en auras ${r(Math.max(0, p.minGas.pressureAtBottomEnd))}. ${p.minGas.ok ? `Marge de ${r(p.minGas.pressureAtBottomEnd - p.minGas.bar)} bars.` : 'Insuffisant.'}`),
     oxygen: (p) => `CNS ${r(p.cns)} pour cent, ${r(p.otu)} OTU.`,
     switches: (p) => {
       const sw = p.segments.filter((s) => s.kind === 'switch');
@@ -36,7 +36,7 @@ const TXT = {
     },
     alerts: (p) => {
       const w = p.warnings.filter((x) => x.level !== 'info');
-      return w.length ? `Attention : ${w.map((x) => spokenMsg(x.message, 'fr')).join('. ')}.` : 'Aucune alerte.';
+      return w.length ? `Attention : ${w.map((x) => spokenMsg(msgOf(x), 'fr')).join('. ')}.` : 'Aucune alerte.';
     },
     scenario: (label, q) => (q.error ? `${label} : plan impossible.`
       : `${label} : ${firstStop(q.plan, 'fr')} Durée totale de remontée ${r(q.plan.tts)} minutes.${lowest(q.plan, 'fr')}${dangers(q.plan, 'fr')}`),
@@ -71,7 +71,7 @@ const TXT = {
     },
     alerts: (p) => {
       const w = p.warnings.filter((x) => x.level !== 'info');
-      return w.length ? `Warning: ${w.map((x) => spokenMsg(x.message, 'en')).join('. ')}.` : 'No warning.';
+      return w.length ? `Warning: ${w.map((x) => spokenMsg(msgOf(x), 'en')).join('. ')}.` : 'No warning.';
     },
     scenario: (label, q) => (q.error ? `${label}: no valid plan.`
       : `${label}: ${firstStop(q.plan, 'en')} Time to surface ${r(q.plan.tts)} minutes.${lowest(q.plan, 'en')}${dangers(q.plan, 'en')}`),
@@ -85,6 +85,9 @@ const TXT = {
 };
 
 const r = (x) => Math.round(x);
+// Traduction des alertes : fournie par l'app (i18n) ; sinon message français du moteur.
+let translate = null;
+const msgOf = (w) => (translate && w.params ? translate('w_' + w.code, w.params) : w.message);
 // Messages d'alerte lisibles à voix haute : « EAN27 » → « nitrox 27 », « O2 » → « oxygène »
 const spokenMsg = (m, lang) => String(m)
   .replace(/\bTX(\d+)\/(\d+)/g, 'trimix $1 $2')
@@ -92,6 +95,7 @@ const spokenMsg = (m, lang) => String(m)
   .replace(/\bO2\b/g, lang === 'fr' ? 'oxygène' : 'oxygen')
   .replace(/\bppO2\b/g, 'p p O 2');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const deFr = (w) => (/^[aeiouyéèh]/i.test(w) ? `d'${w}` : `de ${w}`); // « d'air », « d'oxygène », « de nitrox 27 »
 
 function say(name, lang) {
   if (name === 'O2') return lang === 'fr' ? 'oxygène' : 'oxygen';
@@ -112,7 +116,7 @@ function firstStop(p, lang) {
 function dangers(p, lang) {
   const d = p.warnings.filter((w) => w.level === 'danger');
   if (!d.length) return '';
-  return (lang === 'fr' ? ' Attention : ' : ' Warning: ') + d.map((w) => spokenMsg(w.message, lang)).join('. ') + '.';
+  return (lang === 'fr' ? ' Attention : ' : ' Warning: ') + d.map((w) => spokenMsg(msgOf(w), lang)).join('. ') + '.';
 }
 
 function lowest(p, lang) {
@@ -134,6 +138,7 @@ function tryPlan(input) {
 export function renderFacts(requests, ctx, lang = 'fr') {
   const T = TXT[lang] || TXT.fr;
   const { plan, input } = ctx;
+  translate = ctx.t || null;
   const reserve = ctx.reserve ?? 50;
   let scenarios = null;
   const sc = () => (scenarios ||= contingencyPlans(input));

@@ -4,9 +4,11 @@ import { parseGas, defaultSwitchDepth, mod } from './engine/gases.js';
 import { createEnvironment } from './engine/zhl16c.js';
 import { contingencyPlans, withPreviousDive } from './engine/scenarios.js';
 import { detectLang, saveLang, makeT } from './i18n.js';
-import { parseCommand } from './assistant/parser.js';
 import { applyToolCalls } from './assistant/commands.js';
 import { planSummary } from './assistant/summary.js';
+import { interpret } from './assistant/conversation.js';
+import { renderFacts } from './assistant/facts.js';
+import * as llm from './assistant/llm-engine.js';
 
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'jarvis-dive:v3';
@@ -123,6 +125,7 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder)));
   refreshVoiceButton();
+  if (typeof refreshTalkButton === 'function') { refreshTalkButton(); refreshLlmPanel(); }
   document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   refreshRoles();
   renderCylinders();
@@ -319,6 +322,7 @@ function render(plan, cfg) {
 }
 
 let lastPlan = null;
+let lastInput = null; // entrée exacte du planificateur (plongée successive incluse), pour les scénarios
 
 function update() {
   refreshGfButton();
@@ -328,10 +332,12 @@ function update() {
     if (previousDive) cfg = withPreviousDive(cfg, previousDive, cfg.surfaceInterval).input;
     const plan = planDive(cfg);
     lastPlan = plan;
+    lastInput = cfg;
     updateBadges(plan, cfg.reservePressure);
     render(plan, cfg);
   } catch (e) {
     lastPlan = null;
+    lastInput = null;
     updateBadges(null, 0);
     $('result').innerHTML = `<h2>${t('plan')}</h2><p class="error">${esc(errorText(e))}</p>`;
   }
@@ -383,39 +389,56 @@ function speak(text) {
   window.speechSynthesis.speak(u);
 }
 
-function logCommand(said, items, isError = false) {
-  const log = $('cmdLog');
-  log.innerHTML = `<li class="said">« ${esc(said)} »</li>` + items.map((x) => `<li class="${isError ? 'err' : ''}">${esc(x)}</li>`).join('');
+// ---------- Parler à JARVIS ----------
+// Compréhension hybride (analyseur, puis LLM optionnel) → outils validés → moteur → réponse lue à voix haute.
+let convHistory = [];
+
+function bubble(cls, text, meta = '') {
+  const log = $('convLog');
+  log.insertAdjacentHTML('afterbegin', `<div class="bubble ${cls}">${esc(text)}${meta ? `<small>${esc(meta)}</small>` : ''}</div>`);
+  while (log.children.length > 8) log.lastElementChild.remove();
 }
 
-function runCommand(text, { voice = true } = {}) {
+async function converse(text, { voice = true } = {}) {
   const said = String(text || '').trim();
   if (!said) return;
-  const { calls } = parseCommand(said, getState());
-  if (!calls.length) {
-    logCommand(said, [t('cmdNotUnderstood')], true);
-    if (voice) speak(t('cmdNotUnderstood'));
-    return;
+  bubble('me', said);
+  const llmFn = llm.isLoaded() ? (messages) => llm.dialog(messages) : null;
+  if (llmFn) $('cmdInput').placeholder = t('thinking');
+  const u = await interpret(said, getState(), convHistory, llmFn);
+  $('cmdInput').placeholder = t('cmdPlaceholder');
+  const parts = [];
+  let isError = false;
+  if (u.calls.length) {
+    try {
+      const { state, changes } = applyToolCalls(getState(), u.calls);
+      setState(state);
+      update();
+      if (changes.length) parts.push(t('understood', { list: changes.map((c) => t(c.code, c.params)).join(', ') }));
+    } catch (e) {
+      parts.push(t('cannot', { error: errorText(e) }));
+      isError = true;
+    }
   }
-  try {
-    const { state, changes } = applyToolCalls(getState(), calls);
-    const wantsReadOnly = calls.every((c) => c.name === 'get_plan');
-    if (!wantsReadOnly) setState(state);
-    update();
-    const items = changes.map((c) => t(c.code, c.params));
-    logCommand(said, items.length ? items : [wantsReadOnly ? t('cmdRead') : t('cmdNothing')]);
-    if (voice && lastPlan) speak(planSummary(lastPlan, t, { spoken: true }));
-  } catch (e) {
-    logCommand(said, [errorText(e)], true);
-    if (voice) speak(errorText(e));
+  if (u.note) parts.push(u.note);
+  const facts = u.facts.length ? u.facts : (u.calls.length && !isError ? [{ id: 'summary' }] : []);
+  if (facts.length) {
+    if (lastPlan && lastInput) parts.push(renderFacts(facts, { plan: lastPlan, input: lastInput, reserve: lastInput.reservePressure, t }, lang));
+    else { parts.push($('result').innerText.split('\n').slice(1).join(' ')); isError = true; }
   }
+  if (!parts.length) { parts.push(t('notUnderstood')); isError = true; }
+  const reply = parts.join(' ');
+  convHistory = [...convHistory, { said, out: { calls: u.calls, facts: u.facts, note: u.note || '' } }].slice(-3);
+  bubble(`jarvis${isError ? ' err' : ''}`, reply, `${t('src_' + u.source)}${u.ms ? ` · ${(u.ms / 1000).toFixed(1)} s` : ''}`);
+  if (voice) speak(reply);
 }
 
 $('cmdForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  runCommand($('cmdInput').value);
+  const v = $('cmdInput').value;
   $('cmdInput').value = '';
   $('cmdInput').blur();
+  converse(v);
 });
 $('cmdRead').addEventListener('click', () => { if (lastPlan) speak(planSummary(lastPlan, t, { spoken: true })); });
 $('cmdVoice').addEventListener('click', () => {
@@ -423,6 +446,87 @@ $('cmdVoice').addEventListener('click', () => {
   try { localStorage.setItem('jarvis-dive:voice', voiceOn ? '1' : '0'); } catch { /* sans conséquence */ }
   if (!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   refreshVoiceButton();
+});
+
+// Bouton « Parler » : reconnaissance vocale de Safari si disponible, sinon micro du clavier.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function refreshTalkButton() {
+  const label = $('talkLabel');
+  if (!SR) { $('talk').disabled = true; label.textContent = t('talkUnavailable'); return; }
+  label.textContent = rec ? t('talkListening') : t('talkBtn');
+  $('talk').classList.toggle('on', !!rec);
+}
+$('talk').addEventListener('click', () => {
+  if (!SR) return;
+  if (rec) { rec.stop(); return; }
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel(); // coupe JARVIS et débloque la voix (geste)
+  rec = new SR();
+  rec.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+  rec.interimResults = true;
+  let finalText = '';
+  rec.onresult = (ev) => {
+    let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript;
+      else interim += ev.results[i][0].transcript;
+    }
+    $('cmdInput').value = finalText || interim;
+  };
+  rec.onerror = (ev) => {
+    if (ev.error !== 'no-speech' && ev.error !== 'aborted') bubble('jarvis err', t('srError', { error: ev.error }));
+  };
+  rec.onend = () => {
+    const said = finalText || $('cmdInput').value;
+    $('cmdInput').value = '';
+    rec = null;
+    refreshTalkButton();
+    converse(said);
+  };
+  rec.start();
+  refreshTalkButton();
+});
+
+// LLM optionnel
+function refreshLlmPanel(info = null) {
+  const loaded = llm.isLoaded();
+  $('llmBtn').classList.toggle('on', loaded);
+  $('llmBtn').textContent = loaded ? `🧠 ${llm.MODELS.find((m) => m.id === llm.currentModel()).label}` : '🧠 LLM';
+  $('llmLoad').textContent = loaded ? t('llmUnload') : t('llmLoad');
+  const sel = $('llmModel');
+  if (!sel.options.length) llm.MODELS.forEach((m) => sel.add(new Option(`${m.label} · ${m.size}`, m.id)));
+  if (info !== null) $('llmInfo').textContent = info;
+  else if (!llm.isAvailable()) { $('llmInfo').textContent = t('llmNoGpu'); $('llmLoad').disabled = true; }
+  else {
+    const crash = llm.lastCrash();
+    const m = llm.MODELS.find((x) => x.id === sel.value);
+    $('llmInfo').textContent = loaded ? t('llmReady', { model: m.label })
+      : crash ? t('llmCrashed', { model: crash.model }) : t('llmFirstTime', { size: m.size });
+  }
+}
+$('llmBtn').addEventListener('click', () => {
+  const open = $('llmPanel').hidden;
+  $('llmPanel').hidden = !open;
+  $('llmBtn').setAttribute('aria-expanded', String(open));
+  refreshLlmPanel();
+});
+$('llmModel').addEventListener('change', () => refreshLlmPanel());
+$('llmLoad').addEventListener('click', async () => {
+  const btn = $('llmLoad');
+  btn.disabled = true;
+  try {
+    if (llm.isLoaded()) { await llm.unloadModel(); refreshLlmPanel(); return; }
+    refreshLlmPanel(t('llmLoading'));
+    await llm.loadModel($('llmModel').value, (p, text) => {
+      $('llmBar').style.width = `${Math.round(p * 100)}%`;
+      $('llmInfo').textContent = text;
+    });
+    refreshLlmPanel();
+  } catch (e) {
+    refreshLlmPanel(e.message === 'LIB' ? t('llmNoLib') : e.message === 'WebGPU' ? t('llmNoGpu') : t('llmFailed', { error: e.message }));
+  } finally {
+    btn.disabled = !llm.isAvailable();
+  }
 });
 
 // ---------- Démarrage ----------
@@ -449,7 +553,7 @@ update();
   const params = new URLSearchParams(location.search);
   const cmd = params.get('cmd');
   if (!cmd) return;
-  runCommand(cmd, { voice: false }); // Safari bloque la voix sans appui : bouton « Lire » disponible
+  converse(cmd, { voice: false }); // Safari bloque la voix sans appui : bouton « Lire » disponible
   history.replaceState(null, '', location.pathname);
 })();
 

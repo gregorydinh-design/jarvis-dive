@@ -6,9 +6,11 @@ import { planDive } from '../engine/planner.js';
 import { contingencyPlans, withPreviousDive, surfaceInterval, cnsAfterInterval } from '../engine/scenarios.js';
 import { applyToolCalls, applyToolCall, TOOLS } from '../assistant/commands.js';
 import { parseCommand } from '../assistant/parser.js';
+import { interpret } from '../assistant/conversation.js';
 import { understand } from '../assistant/intents.js';
 import { renderFacts } from '../assistant/facts.js';
 import { readDialog } from '../assistant/llm.js';
+import { makeT } from '../i18n.js';
 
 let failed = 0;
 let passed = 0;
@@ -278,8 +280,23 @@ console.log('\n11. Conversation : questions → faits calculés');
   const ref = contingencyPlans(input).find((x) => x.gas === 'O2').plan;
   check('Réponse perte O2 = plan de secours du moteur', lost.includes(`${Math.round(ref.tts)} minutes`), lost);
   check('Alerte annoncée si réserve franchie', renderFacts([{ id: 'plus_time', minutes: 10 }], { plan, input }).includes('Attention'));
+  check('Élision : « bars d\'air »', renderFacts([{ id: 'min_gas' }], { plan: planDive({ depth: 30, bottomTime: 20, gases: [{ ...parseGas('Air'), volume: 12, startPressure: 200 }] }), input: {} }).includes("d'air"));
+  check('Alertes traduites en anglais', renderFacts([{ id: 'plus_time', minutes: 10 }], { plan, input, t: makeT('en') }, 'en').includes('bar left'));
   check('Note du LLM contenant un chiffre supprimée', readDialog('{"calls":[],"facts":[],"note":"il te reste 91 bars"}').note === '');
   check('Fait inconnu ignoré', readDialog('{"calls":[],"facts":[{"id":"hack"},{"id":"tts"}],"note":""}').facts.length === 1);
+}
+
+console.log('\n12. Compréhension hybride');
+{
+  const st = { depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [{ mix: 'EAN27' }, { mix: 'O2', switchDepth: 6 }] };
+  let llmCalled = 0;
+  const fakeLlm = async () => { llmCalled++; return '{"calls":[],"facts":[{"id":"tts"}],"note":""}'; };
+  const a1 = await interpret('rajoute 5 minutes', st, [], fakeLlm);
+  check('Analyseur d\'abord : pas d\'appel au LLM si la phrase est comprise', a1.source === 'parser' && llmCalled === 0);
+  const a2 = await interpret('bon alors, ça sort quand cette histoire ?', st, [], fakeLlm);
+  check('LLM seulement pour une phrase non comprise', a2.source === 'llm' && llmCalled === 1 && a2.facts[0].id === 'tts');
+  const a3 = await interpret('blabla', st, [], async () => { throw new Error('boom'); });
+  check('LLM en panne : pas de plantage', a3.source === 'parser');
 }
 
 console.log(`\n${passed} réussis, ${failed} échoué(s)\n`);

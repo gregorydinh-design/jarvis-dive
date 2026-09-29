@@ -158,3 +158,22 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 
 .lab-link { text-align: center; font-size: 12px; margin: 0 0 16px; }
 .lab-link a { color: var(--muted); }
+
+/* Parler à JARVIS */
+.talk { width: 100%; min-height: 64px; font-size: 20px; border-radius: 14px; margin-bottom: 10px; }
+.talk.on { background: var(--danger); color: #fff; }
+.talk:disabled { opacity: 0.5; }
+.llm-btn { margin-left: auto; }
+.llm-btn.on { border-style: solid; border-color: var(--accent); }
+.llm-panel { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+.llm-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.llm-row select { font-size: 16px; min-height: 44px; }
+.llm-row button { padding: 0 16px; }
+.bar { height: 6px; background: var(--panel); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.conv-log { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.bubble { padding: 8px 12px; border-radius: 14px; font-size: 15px; max-width: 92%; line-height: 1.35; }
+.bubble.me { align-self: flex-end; background: var(--panel-2); font-style: italic; }
+.bubble.jarvis { align-self: flex-start; background: rgba(56,217,200,0.10); border: 1px solid rgba(56,217,200,0.35); }
+.bubble.err { border-color: var(--danger); background: rgba(255,107,107,0.08); }
+.bubble small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; font-style: normal; }

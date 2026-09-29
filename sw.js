@@ -1,6 +1,8 @@
 // JARVIS DIVE — Service worker : tout le planificateur fonctionne hors ligne.
 // Incrémenter VERSION à chaque déploiement pour forcer la mise à jour du cache.
-const VERSION = 'jarvis-dive-v0.5.3';
+const VERSION = 'jarvis-dive-v1.0.0';
+const LIB_CACHE = 'jarvis-dive-libs'; // bibliothèques externes versionnées (WebLLM) : conservées entre les mises à jour
+const LIB_HOSTS = ['esm.run', 'cdn.jsdelivr.net'];
 const ASSETS = [
   './',
   'index.html',
@@ -19,6 +21,8 @@ const ASSETS = [
   'assistant/intents.js',
   'assistant/facts.js',
   'assistant/llm.js',
+  'assistant/conversation.js',
+  'assistant/llm-engine.js',
   'i18n.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -32,18 +36,32 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      // Ne supprime que les anciennes versions de l'app : jamais les modèles WebLLM ni les bibliothèques.
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('jarvis-dive-v') && k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
 
-// Réseau d'abord (version à jour dès qu'il y a du réseau), copie locale sinon (hors ligne).
-// Chaque réponse réseau met la copie locale à jour. Les appels à d'autres sites (LLM, WebLLM) ne sont pas interceptés.
+// Fichiers de l'app : réseau d'abord (version à jour dès qu'il y a du réseau), copie locale sinon (hors ligne).
+// Chaque réponse réseau met la copie locale à jour. Les autres sites (poids des modèles…) ne sont pas interceptés.
 const NETWORK_TIMEOUT_MS = 3000;
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (event.request.method !== 'GET') return;
+  // Bibliothèque WebLLM (URL versionnée, donc immuable) : copie locale d'abord, pour le hors ligne.
+  if (LIB_HOSTS.includes(url.hostname)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(LIB_CACHE);
+      const hit = await cache.match(event.request);
+      if (hit) return hit;
+      const response = await fetch(event.request);
+      if (response && response.ok) cache.put(event.request, response.clone());
+      return response;
+    })());
+    return;
+  }
+  if (url.origin !== self.location.origin) return;
   event.respondWith((async () => {
     const cache = await caches.open(VERSION);
     try {
