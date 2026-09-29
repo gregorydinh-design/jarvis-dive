@@ -88,15 +88,18 @@ export function readCalls(content) {
 }
 
 export function buildQuestionMessages(question, planText) {
+  // Les petits modèles ignorent souvent la consigne système : le plan est placé dans le message lui-même.
   return [
     {
       role: 'system',
-      content: `Tu es JARVIS, assistant de plongée technique. Réponds en français, en 3 phrases maximum.
-Appuie-toi UNIQUEMENT sur le plan calculé ci-dessous. Ne recalcule jamais un palier, une durée ou une pression : cite les valeurs du plan.
-Si l'information n'est pas dans le plan, dis-le.
-PLAN CALCULÉ PAR JARVIS :
-${planText}`,
+      content: 'Tu es JARVIS, assistant de plongée technique. Tu réponds en français, en 3 phrases maximum, uniquement avec les chiffres du plan fourni. Tu ne recalcules jamais rien.',
     },
-    { role: 'user', content: question },
+    {
+      role: 'user',
+      content: `Voici mon plan de plongée, calculé par JARVIS :
+${planText}
+
+En t'appuyant uniquement sur ce plan, réponds à ma question : ${question}`,
+    },
   ];
 }

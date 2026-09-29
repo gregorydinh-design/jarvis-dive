@@ -240,6 +240,8 @@ console.log('\n10. Commandes vocales : analyseur + outils');
   check('« une demi-heure »', run('35 mètres pendant une demi-heure', withO2).bottomTime === 30);
   check('« nitrox 50 pour la déco » = déco, pas fond', (() => { const x = run('mets-moi du nitrox 50 pour la déco', withO2); return x.gases[0].mix === 'Air' && x.gases[1].mix === 'EAN50' && x.gases[1].switchDepth === 21; })());
   check('« vire l\'oxy »', run('vire l\'oxy', withO2).gases.length === 1);
+  check('« on part au 32 à 30 mètres » = EAN32 au fond', (() => { const x = run('on part au 32 à 30 mètres pour 40 minutes', withO2); return x.gases[0].mix === 'EAN32' && x.depth === 30 && x.bottomTime === 40; })());
+  check('« 30 mètres » reste une profondeur', run('descends à 30 mètres', withO2).depth === 30);
   check('Gaz de déco triés par profondeur', run('EAN50 à 21', withO2).gases.map((g) => g.mix).join(' ') === 'Air EAN50 O2');
   // Validation : un outil hors limites est refusé et l'état n'est pas modifié
   let refused = false;

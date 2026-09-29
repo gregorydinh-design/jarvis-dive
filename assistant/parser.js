@@ -29,7 +29,10 @@ export function normalize(text) {
   s = s.replace(/\b(?:une )?(dizaine|quinzaine|vingtaine|trentaine|quarantaine|cinquantaine|soixantaine)(?: de)?\b/g, (_, w) => String(APPROX[w]));
   s = s.replace(/\b(?:une )?demi[\s-]?heure\b|\bhalf an hour\b/g, '30 minutes');
   s = s.replace(/\b(?:une|an|one) (?:heure|hour)\b/g, '60 minutes');
-  return ` ${wordsToNumbers(s)} `;
+  s = wordsToNumbers(s);
+  // Jargon : « au 32 », « du 50 » = nitrox (nombre 21 à 99 non suivi d'une unité)
+  s = s.replace(/\b(au|du) (2[1-9]|[3-9]\d)\b(?!\s?(?:metres?|meters?|m\b|min|minutes?|mn\b|bars?|b\b|l\b|litres?|liters?|%))/g, '$1 ean$2');
+  return ` ${s} `;
 }
 
 const GAS = String.raw`(?:(air)|(oxygene|oxygen|oxy|o2)|(?:nitrox|eanx|ean|nx)\s?(\d{2})|(?:trimix|tx|tmx)\s?(\d{1,2})\s?(?:\/|sur|over|\s)\s?(\d{1,2}))`;
