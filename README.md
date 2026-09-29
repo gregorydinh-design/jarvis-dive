@@ -61,7 +61,8 @@ index.html, app.js, styles.css, sw.js, manifest.json   PWA
 
 ## Roadmap
 
-- V1 : OC Nitrox + multi-gaz switch libre ← en cours
-- V2 : OC Trimix (le moteur gère déjà l'hélium)
-- V3 : CCR (setpoint, bailout)
-- V4 : Vocal (Web Speech API) + dialogue LLM local
+1. **Journée jusqu'à 4 plongées successives** (tissus, CNS, OTU reportés de plongée en plongée)
+2. **CCR** (setpoint, bailout)
+3. **Trimix OC** (le moteur gère déjà l'hélium ; interface à faire)
+
+En parallèle : conversation vocale intégrée à l'app, validation terrain contre la Garmin Descent MK3.
