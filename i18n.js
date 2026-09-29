@@ -30,7 +30,7 @@ const fr = {
   footer: "Outil d'aide à la planification en cours de validation. Il ne remplace ni la formation, ni l'ordinateur de plongée, ni le jugement du plongeur. Vérifiez chaque plan avec un second outil.",
   plan: 'Plan',
   runtime: 'Runtime min',
-  tts: 'TTS min',
+  tts: 'DTR min',
   stopsMin: 'Paliers min',
   firstStop: '1er palier m',
   stops: 'Paliers',
