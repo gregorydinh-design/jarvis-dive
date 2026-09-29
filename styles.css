@@ -142,3 +142,4 @@ td.ok { color: var(--accent); }
 .mingas.low { border-color: var(--danger); }
 .sc-stops { display: block; font-size: 12px; color: var(--muted); }
 tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
+.prev-limit { margin: 0 0 8px; font-size: 13px; color: var(--warn); }
