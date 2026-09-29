@@ -4,6 +4,10 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 
 - **Moteur** : Bühlmann ZHL-16C + Gradient Factors, JavaScript pur (`engine/`). Tous les calculs de décompression sont faits ici, jamais par le LLM.
 - **Gaz** : OC multi-gaz avec switch libre (chaque gaz de déco est pris à la profondeur que vous choisissez).
+- **Blocs** : volume et pression de départ par gaz (200 bar par défaut), pression restante affichée sur chaque gaz, alerte rouge sous 50 bar (réglable).
+- **Gaz minimum** : gaz nécessaire pour remonter à 2 plongeurs, SAC fond × 2, 1 min de résolution au fond, jusqu'au premier switch.
+- **Plans de secours** : +5 min, +3 m, +3 m +5 min, et perte de chaque gaz de déco.
+- **Plongée successive** : la plongée en cours devient la n°1 ; tissus, CNS (demi-vie 90 min) et OTU sont reportés après l'intervalle de surface.
 - **Langues** : français / anglais (bouton FR | EN, langue du téléphone par défaut).
 - **Hors ligne** : service worker, installable depuis Safari (Partager → Sur l'écran d'accueil).
 
@@ -19,6 +23,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 | Paliers | pas de 3 m, dernier palier 3 m (option 6 m), durées entières |
 | GF | GF bas ancré au premier palier (Baker), interpolé jusqu'à GF haut en surface |
 | Switch de gaz | 1 min minimum au palier de changement |
+| Blocs | fond 12 L, déco 7 L, 200 bar ; gaz parfait (pas de correction de compressibilité) |
 | Eau | mer, densité 1.03 ; pression surface 1.01325 bar |
 | Vapeur d'eau | 0.0627 bar (Bühlmann) |
 | ppO2 | 1.4 fond, 1.6 déco, tolérance d'arrondi 0.03 (O2 à 6 m = 1.62 bar en eau de mer) |
@@ -40,6 +45,7 @@ engine/gases.js    Mélanges, MOD, END, densité
 engine/oxygen.js   CNS, OTU
 engine/planner.js  Planificateur multi-gaz
 engine/errors.js   Codes d'erreur traduisibles
+engine/scenarios.js  Plans de secours, perte de gaz, plongées successives
 i18n.js            Traductions FR / EN
 tests/run.js       Suite de tests (Node 18+)
 index.html, app.js, styles.css, sw.js, manifest.json   PWA

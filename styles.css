@@ -111,3 +111,34 @@ footer { color: #6d8ea3; font-size: 12px; text-align: center; padding: 8px 12px;
 .lang { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .lang button { background: transparent; color: var(--muted); border: 0; min-width: 44px; min-height: 36px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; border-radius: 0; }
 .lang button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* Reste par bloc sur la ligne de gaz */
+.gas-role { display: flex; flex-direction: column; gap: 2px; line-height: 1.1; }
+.gas-left { font-size: 12px; font-weight: 700; color: var(--accent); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.gas-left.low { color: var(--danger); }
+
+/* Blocs */
+.cylinders { display: flex; flex-direction: column; gap: 8px; }
+.cyl { display: grid; grid-template-columns: 1fr 88px 96px; gap: 8px; align-items: end; }
+.cyl-name { font-size: 14px; color: var(--text); align-self: center; }
+.cyl-name small { display: block; color: var(--muted); font-size: 12px; }
+.cyl label { font-size: 12px; }
+.cyl input { font-size: 17px; text-align: center; padding: 8px 4px; }
+
+/* Plongée successive */
+.repet { margin-top: 12px; }
+.prev-box { background: var(--panel-2); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; }
+.prev-head { display: flex; justify-content: space-between; align-items: center; }
+.prev-title { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.icon-btn { background: transparent; color: var(--muted); border: 1px solid var(--line); min-width: 40px; min-height: 36px; }
+.prev-desc { margin: 6px 0 8px; font-size: 14px; }
+label.inline { flex-direction: row; align-items: center; gap: 8px; }
+label.inline input { width: 96px; text-align: center; font-size: 18px; }
+
+/* Résultats */
+td.low, .low b { color: var(--danger); }
+td.ok { color: var(--accent); }
+.mingas { font-size: 14px; margin: 10px 0 0; padding: 8px 10px; border-radius: 8px; border-left: 4px solid var(--accent); background: rgba(255,255,255,0.03); }
+.mingas.low { border-color: var(--danger); }
+.sc-stops { display: block; font-size: 12px; color: var(--muted); }
+tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }

@@ -29,6 +29,15 @@ export const DEFAULTS = Object.freeze({
   waterDensity: 1.03,
   o2Narcotic: true,
   maxDecoMinutes: 1000,
+  // Blocs et réserves
+  reservePressure: 50,     // bar restants minimum par bloc
+  minGasDivers: 2,         // gaz minimum : remontée à 2 sur le gaz fond
+  minGasStressFactor: 2,   // SAC fond multiplié en situation de stress
+  minGasProblemMin: 1,     // minutes de résolution du problème au fond
+  // Plongée successive
+  initialTissues: null,    // état des tissus en début de plongée (sinon saturation air en surface)
+  initialCns: 0,
+  initialOtu: 0,
 });
 
 const EPS = 1e-9;
@@ -50,18 +59,18 @@ export function planDive(input) {
   if (gfLow <= 0 || gfHigh <= 0 || gfLow > gfHigh || gfHigh > 1) throw new DiveError('INVALID_GF', {}, 'Gradient factors invalides');
 
   const gases = cfg.gases.map((g, i) => {
-    const gas = g.o2 !== undefined && g.n2 !== undefined ? { ...g } : makeGas(g);
+    const gas = g.o2 !== undefined && g.n2 !== undefined ? { ...g } : { ...makeGas(g), volume: g.volume, startPressure: g.startPressure };
     if (i === 0) gas.switchDepth = null;
     return gas;
   });
 
   const warnings = [];
   const segments = [];
-  const tissues = new Tissues(env);
+  const tissues = cfg.initialTissues ? new Tissues(env, cfg.initialTissues) : new Tissues(env);
   const gasUse = gases.map(() => 0);
   let runtime = 0;
-  let cns = 0;
-  let otu = 0;
+  let cns = cfg.initialCns || 0;
+  let otu = cfg.initialOtu || 0;
   let maxPpO2 = 0;
 
   function addSegment(kind, from, to, minutes, gi) {
@@ -107,6 +116,8 @@ export function planDive(input) {
   addSegment('descent', 0, cfg.depth, descentTime, 0);
   addSegment('bottom', cfg.depth, cfg.depth, cfg.bottomTime - descentTime, 0);
   const bottomEndRuntime = runtime;
+  const bottomEndSegmentIndex = segments.length;
+  const bottomGasUsedAtBottomEnd = gasUse[0];
 
   // NDL restant à la fin du fond (remontée directe tolérée à GF haut).
   const ndl = computeNdl(tissues, env, cfg.depth, bottomGas, gfHigh);
@@ -217,9 +228,46 @@ export function planDive(input) {
   else if (cns > 80) warnings.push({ level: 'warn', code: 'CNS', params: { cns, limit: 80 }, message: `CNS ${cns.toFixed(0)} % > 80 %` });
   if (maxPpO2 > 1.6 + cfg.ppO2Tolerance) warnings.push({ level: 'danger', code: 'PPO2_MAX', params: { pp: maxPpO2 }, message: `ppO2 max ${maxPpO2.toFixed(2)} bar` });
 
+  // ---------- Gaz minimum (rock bottom) sur le gaz fond ----------
+  // Remontée à plusieurs plongeurs, SAC de stress, depuis la fin du fond jusqu'au premier switch (ou la surface).
+  let exposure = env.pressure(cfg.depth) * cfg.minGasProblemMin; // bar·min
+  for (let k = bottomEndSegmentIndex; k < segments.length; k++) {
+    const s = segments[k];
+    if (s.kind === 'switch') break;
+    exposure += env.pressure((s.from + s.to) / 2) * s.duration;
+  }
+  const minGasLiters = cfg.minGasDivers * cfg.sacBottom * cfg.minGasStressFactor * exposure;
+
+  // ---------- Pressions des blocs ----------
+  const gasesOut = gases.map((g, i) => {
+    const out = { ...g, liters: Math.round(gasUse[i]) };
+    if (g.volume > 0 && g.startPressure > 0) {
+      out.endPressure = g.startPressure - gasUse[i] / g.volume;
+      if (out.endPressure < cfg.reservePressure) {
+        warnings.push({ level: 'danger', code: 'RESERVE',
+          params: { gas: g.name, pressure: Math.max(0, out.endPressure), reserve: cfg.reservePressure },
+          message: `${g.name} : ${Math.max(0, out.endPressure).toFixed(0)} bar restants < ${cfg.reservePressure} bar` });
+      }
+    }
+    return out;
+  });
+  const minGas = { liters: Math.round(minGasLiters), bar: null, pressureAtBottomEnd: null, ok: null };
+  const bg = gases[0];
+  if (bg.volume > 0 && bg.startPressure > 0) {
+    minGas.bar = minGasLiters / bg.volume;
+    minGas.pressureAtBottomEnd = bg.startPressure - bottomGasUsedAtBottomEnd / bg.volume;
+    minGas.ok = minGas.pressureAtBottomEnd >= minGas.bar - EPS;
+    if (!minGas.ok) {
+      warnings.push({ level: 'danger', code: 'MIN_GAS',
+        params: { gas: bg.name, pressure: Math.max(0, minGas.pressureAtBottomEnd), minGas: minGas.bar },
+        message: `${bg.name} en fin de fond : ${minGas.pressureAtBottomEnd.toFixed(0)} bar < gaz minimum ${minGas.bar.toFixed(0)} bar` });
+    }
+  }
+
   return {
     input: { depth: cfg.depth, bottomTime: cfg.bottomTime, gfLow: cfg.gfLow, gfHigh: cfg.gfHigh, lastStop: cfg.lastStop },
-    gases: gases.map((g, i) => ({ ...g, liters: Math.round(gasUse[i]) })),
+    gases: gasesOut,
+    minGas,
     segments,
     stops,
     firstStop: stops.length ? stops[0].depth : null,
@@ -231,6 +279,9 @@ export function planDive(input) {
     ndl,
     cns,
     otu,
+    cnsDive: cns - (cfg.initialCns || 0),
+    otuDive: otu - (cfg.initialOtu || 0),
+    repetitive: !!cfg.initialTissues,
     maxPpO2,
     endBottom,
     densityBottom: rho,

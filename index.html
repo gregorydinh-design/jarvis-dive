@@ -63,6 +63,21 @@
       </div>
       <button id="addGas" class="ghost" type="button" data-i18n="addGas">+ Gaz de déco</button>
 
+      <div id="repet" class="repet">
+        <button id="setPrev" class="ghost" type="button" data-i18n="setAsPrevious">+ Plongée successive</button>
+        <div id="prevBox" class="prev-box" hidden>
+          <div class="prev-head">
+            <span class="prev-title" data-i18n="repetitive">Plongée successive</span>
+            <button id="clearPrev" class="icon-btn" type="button" data-i18n-aria="removePrev" aria-label="Retirer">✕</button>
+          </div>
+          <p id="prevDesc" class="prev-desc"></p>
+          <label class="inline"><span data-i18n="interval">Intervalle surface</span>
+            <input id="surfaceInterval" type="number" inputmode="numeric" min="0" step="5" value="60">
+            <span class="unit">min</span>
+          </label>
+        </div>
+      </div>
+
       <details class="advanced">
         <summary data-i18n="advanced">Réglages avancés</summary>
         <div class="grid2">
@@ -79,6 +94,17 @@
           <label><span data-i18n="sacBottom">SAC fond</span> <span class="unit">L/min</span><input id="sacBottom" type="number" inputmode="decimal" value="20"></label>
           <label><span data-i18n="sacDeco">SAC déco</span> <span class="unit">L/min</span><input id="sacDeco" type="number" inputmode="decimal" value="15"></label>
         </div>
+
+        <h3 data-i18n="cylinders">Blocs</h3>
+        <div id="cylinders" class="cylinders"></div>
+
+        <h3 data-i18n="reserves">Réserves</h3>
+        <div class="grid2">
+          <label><span data-i18n="reserve">Réserve mini par bloc</span> <span class="unit">bar</span><input id="reservePressure" type="number" inputmode="numeric" min="0" step="10" value="50"></label>
+          <label><span data-i18n="divers">Plongeurs (gaz mini)</span><input id="minGasDivers" type="number" inputmode="numeric" min="1" max="4" step="1" value="2"></label>
+          <label><span data-i18n="stressFactor">SAC stress</span> <span class="unit">× SAC fond</span><input id="minGasStressFactor" type="number" inputmode="decimal" min="1" step="0.5" value="2"></label>
+          <label><span data-i18n="problemTime">Résolution au fond</span> <span class="unit">min</span><input id="minGasProblemMin" type="number" inputmode="numeric" min="0" step="1" value="1"></label>
+        </div>
       </details>
     </section>
 
@@ -92,7 +118,7 @@
 
   <template id="gasRow">
     <div class="gas">
-      <span class="gas-role"></span>
+      <span class="gas-role"><span class="gas-role-name"></span><span class="gas-left"></span></span>
       <input class="gas-mix" type="text" autocapitalize="characters" spellcheck="false">
       <label class="gas-switch"><span class="gas-switch-label">switch</span>
         <input class="gas-depth" type="number" inputmode="numeric" min="0" step="1">
