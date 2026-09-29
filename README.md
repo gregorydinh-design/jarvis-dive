@@ -12,7 +12,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 
 | Réglage | Défaut |
 |---|---|
-| Profil par défaut | Air (EAN21), 40 m, 20 min, GF 30/85 |
+| Profil par défaut | Air (EAN21), 40 m, 20 min, GF 85/85 |
 | Temps fond | inclut la descente |
 | Descente / remontée | 18 / 9 m/min |
 | Paliers | pas de 3 m, dernier palier 3 m (option 6 m), durées entières |

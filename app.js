@@ -4,7 +4,7 @@ import { parseGas, defaultSwitchDepth, mod } from './engine/gases.js';
 import { createEnvironment } from './engine/zhl16c.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE_KEY = 'jarvis-dive:v1';
+const STORE_KEY = 'jarvis-dive:v2';
 const NUM_FIELDS = ['depth', 'bottomTime', 'gfLow', 'gfHigh', 'descentRate', 'ascentRate', 'lastStop',
   'switchStopMin', 'ppO2Bottom', 'waterDensity', 'sacBottom', 'sacDeco'];
 const DEFAULT_GASES = [{ mix: 'Air', depth: '' }];

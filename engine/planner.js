@@ -10,7 +10,7 @@ import { makeGas, ppO2, mod, end, density } from './gases.js';
 import { oxygenExposure } from './oxygen.js';
 
 export const DEFAULTS = Object.freeze({
-  gfLow: 30,
+  gfLow: 85,
   gfHigh: 85,
   descentRate: 18,        // m/min
   ascentRate: 9,          // m/min
