@@ -1,0 +1,101 @@
+:root {
+  --bg: #07141f;
+  --panel: #0d2233;
+  --panel-2: #12304a;
+  --line: #1f4663;
+  --text: #e6f1f7;
+  --muted: #8fb0c4;
+  --accent: #38d9c8;
+  --accent-ink: #04201d;
+  --warn: #f5b942;
+  --danger: #ff6b6b;
+  --info: #6cb6ff;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+
+body {
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom));
+  max-width: 720px;
+  margin: 0 auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+.top { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 10px; }
+h1 { margin: 0; font-size: 22px; letter-spacing: 0.14em; font-weight: 800; }
+h1 span { color: var(--accent); }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.pill { border: 1px solid var(--warn); color: var(--warn); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin: 12px 0; }
+h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+h3 { margin: 18px 0 8px; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+.unit { font-size: 12px; color: #6d8ea3; }
+
+input, select {
+  width: 100%;
+  font: inherit;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 48px;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+button { font: inherit; cursor: pointer; border-radius: 10px; min-height: 44px; }
+.ghost { background: transparent; color: var(--accent); border: 1px dashed var(--line); padding: 8px 14px; }
+
+.gases { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.gas { display: grid; grid-template-columns: 52px 1fr 118px 44px; gap: 8px; align-items: center; }
+.gas-role { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.gas-switch { flex-direction: row; align-items: center; gap: 6px; font-size: 12px; }
+.gas-switch input { font-size: 18px; padding: 10px 6px; text-align: center; }
+.gas.bottom .gas-switch, .gas.bottom .gas-del { visibility: hidden; }
+.gas-del { border-style: solid; padding: 0; }
+.gas input.invalid { border-color: var(--danger); }
+
+.advanced { margin-top: 16px; }
+.advanced summary { color: var(--muted); cursor: pointer; padding: 6px 0; }
+.advanced .grid2 { margin-top: 10px; }
+.advanced input, .advanced select { font-size: 17px; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile { background: var(--panel-2); border-radius: 10px; padding: 10px; }
+.tile b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 12px; color: var(--muted); }
+.tile.hero b { color: var(--accent); }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 8px; }
+th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 6px 4px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 4px; border-bottom: 1px solid #16364f; font-size: 17px; }
+td.num, th.num { text-align: right; }
+tr.switch td { color: var(--accent); font-size: 14px; }
+
+.warnings { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.warnings li { padding: 8px 10px; border-radius: 8px; font-size: 14px; border-left: 4px solid; background: rgba(255,255,255,0.03); }
+.warnings .danger { border-color: var(--danger); }
+.warnings .warn { border-color: var(--warn); }
+.warnings .info { border-color: var(--info); }
+
+.error { color: var(--danger); }
+.profile { width: 100%; height: auto; margin-top: 12px; display: block; }
+.meta { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+footer { color: #6d8ea3; font-size: 12px; text-align: center; padding: 8px 12px; }
+
+@media (max-width: 380px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .gas { grid-template-columns: 44px 1fr 104px 40px; }
+}

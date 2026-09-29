@@ -1,0 +1,10 @@
+{
+  "name": "jarvis-dive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA de planification plongée technique — moteur Bühlmann ZHL-16C + GF",
+  "scripts": {
+    "test": "node tests/run.js"
+  }
+}
