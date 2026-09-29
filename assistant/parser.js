@@ -89,7 +89,16 @@ export function parseCommand(text, state = null) {
       const pressure = m[9] ? +m[9] : undefined;
       if (volume !== undefined || pressure !== undefined) calls.push({ name: 'set_cylinder', args: { gas, volume, pressure } });
     });
-  each(/\b(?:bi|twin|2\s?x)\s?(\d{1,2})\b/g, (m) => calls.push({ name: 'set_cylinder', args: { gas: 'bottom', volume: 2 * +m[1] } }));
+  each(/\b(?:bi|twin|2\s?x)\s?(\d{1,2})\b(?:\s(?:a|at|gonfle a)?\s?(\d{2,3})\s?(?:b|bars?)\b)?/g, (m) => calls.push({ name: 'set_cylinder', args: { gas: 'bottom', volume: 2 * +m[1], pressure: m[2] ? +m[2] : undefined } }));
+
+  // 4b. Bloc dicté juste après un gaz : « EAN50 à 21 en 7 litres », « à l'air en 15 litres », « nitrox 32 en bi 12 à 230 bars »
+  for (const m of [...s.matchAll(new RegExp(String.raw`${GAS}((?:\s(?:a|at|@)\s?\d{1,3}\s?(?:${MET})?)?)(\s(?:en|de|avec|in|with)\s(?:un\s|une\s|a\s)?(?:(?:bi|twin|2\s?x)\s?(\d{1,2})|(\d{1,2})\s?(?:l|litres?|liters?))(?:\s(?:a|at)\s?(\d{2,3})\s?(?:b|bars?))?)\b`, 'g'))]) {
+    const mix = gasFrom(m);
+    const volume = m[8] ? 2 * +m[8] : +m[9];
+    const pressure = m[10] ? +m[10] : undefined;
+    calls.push({ name: 'set_cylinder', args: { gas: mix, volume, pressure }, pending: true });
+    s = s.replace(m[7], ' '.repeat(m[7].length)); // on efface le bloc, le gaz et son switch restent pour l'étape 5
+  }
 
   // 5. Gaz, avec profondeur de switch optionnelle : "ean47 a 12", "oxygene a 6 m", "o2 @ 6"
   const bottomName = state && state.gases && state.gases[0] ? String(state.gases[0].mix).toUpperCase() : null;
@@ -138,5 +147,10 @@ export function parseCommand(text, state = null) {
     calls.push({ name: 'get_plan', args: {} });
   }
 
-  return { calls: calls.map(({ name, args }) => ({ name, args })), normalized: normalize(text).trim() };
+  // Un bloc se règle après la création de son gaz ; un bloc « bottom » vise le gaz fond final.
+  const ORDER = { set_bottom_gas: 0, remove_gas: 1, add_deco_gas: 1, set_dive: 2, set_gf: 2, set_cylinder: 3, get_plan: 4 };
+  const bottomMix = calls.find((c) => c.name === 'set_bottom_gas')?.args.mix;
+  for (const c of calls) if (c.name === 'set_cylinder' && c.pending && bottomMix && c.args.gas === bottomMix) c.args.gas = 'bottom';
+  const sorted = calls.map((c, i) => ({ c, i })).sort((x, y) => (ORDER[x.c.name] - ORDER[y.c.name]) || (x.i - y.i)).map((x) => x.c);
+  return { calls: sorted.map(({ name, args }) => ({ name, args: Object.fromEntries(Object.entries(args).filter(([, v]) => v !== undefined)) })), normalized: normalize(text).trim() };
 }

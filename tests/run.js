@@ -286,6 +286,18 @@ console.log('\n11. Conversation : questions → faits calculés');
   check('Fait inconnu ignoré', readDialog('{"calls":[],"facts":[{"id":"hack"},{"id":"tts"}],"note":""}').facts.length === 1);
 }
 
+console.log('\n13. Plan complet dicté en une phrase');
+{
+  const st0 = { depth: 40, bottomTime: 20, gfLow: 85, gfHigh: 85, gases: [{ mix: 'Air', switchDepth: null, volume: 12, startPressure: 200 }] };
+  const run = (q) => applyToolCalls(st0, parseCommand(q, st0).calls).state;
+  const desc = (x) => `${x.depth}m ${x.bottomTime}min | ` + x.gases.map((g) => `${g.mix}@${g.switchDepth ?? '-'} ${g.volume}L ${g.startPressure}b`).join(' ; ');
+  const a = run('plongée à 30 mètres max et 45 minutes, au nitrox 32 en bi 12 à 230 bars, EAN50 à 21 en 11 litres, oxygène à 6 en 7 litres');
+  check('Tout en une phrase (gaz, switchs, blocs, pressions)', desc(a) === '30m 45min | EAN32@- 24L 230b ; EAN50@21 11L 200b ; O2@6 7L 200b', desc(a));
+  const b = run('30 mètres 45 minutes EAN32, bloc fond bi 12 à 230 bars, bloc EAN50 11 litres, EAN50 à 21, oxygène à 6');
+  check('Bloc d\'un gaz de déco dicté avant le gaz', b.gases.find((g) => g.mix === 'EAN50').volume === 11 && b.gases[0].startPressure === 230, desc(b));
+  check('« à l\'air en 15 litres »', run("30 mètres 45 minutes à l'air en 15 litres").gases[0].volume === 15);
+}
+
 console.log('\n12. Compréhension hybride');
 {
   const st = { depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [{ mix: 'EAN27' }, { mix: 'O2', switchDepth: 6 }] };
