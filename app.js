@@ -47,8 +47,23 @@ function refreshRoles() {
     row.querySelector('.gas-mix').setAttribute('aria-label', t('mixLabel'));
     row.querySelector('.gas-depth').setAttribute('aria-label', t('switchDepthLabel'));
     row.querySelector('.gas-del').setAttribute('aria-label', t('remove'));
+    if (i === 0 && !row.contains(gfBtn)) row.append(gfBtn, gfPanel);
   });
 }
+
+// Bouton GF à droite du gaz fond, ouvrant un petit tableau éditable
+const gfBtn = $('gfBtn');
+const gfPanel = $('gfPanel');
+function refreshGfButton() {
+  gfBtn.textContent = `GF ${$('gfLow').value || '?'}/${$('gfHigh').value || '?'}`;
+  gfBtn.setAttribute('aria-label', `${gfBtn.textContent} — ${t('gfButton')}`);
+}
+gfBtn.addEventListener('click', () => {
+  const open = gfPanel.hidden;
+  gfPanel.hidden = !open;
+  gfBtn.setAttribute('aria-expanded', String(open));
+  if (open) $('gfLow').focus();
+});
 
 function applyLang() {
   document.documentElement.lang = lang;
@@ -166,6 +181,7 @@ function render(plan, cfg) {
 }
 
 function update() {
+  refreshGfButton();
   save();
   let cfg;
   try {

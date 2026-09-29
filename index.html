@@ -38,16 +38,29 @@
         <label><span data-i18n="bottomTime">Temps fond</span> <span class="unit" data-i18n="bottomTimeUnit">min, descente incluse</span>
           <input id="bottomTime" type="number" inputmode="decimal" min="1" max="300" step="1" value="20">
         </label>
-        <label><span data-i18n="gfLow">GF bas</span> <span class="unit">%</span>
-          <input id="gfLow" type="number" inputmode="numeric" min="5" max="100" step="5" value="85">
-        </label>
-        <label><span data-i18n="gfHigh">GF haut</span> <span class="unit">%</span>
-          <input id="gfHigh" type="number" inputmode="numeric" min="5" max="100" step="5" value="85">
-        </label>
       </div>
 
       <h3 data-i18n="gases">Gaz</h3>
       <div id="gases" class="gases"></div>
+      <div id="gfHolder" hidden>
+        <button id="gfBtn" class="gf-btn" type="button" aria-expanded="false" aria-controls="gfPanel">GF 85/85</button>
+        <div id="gfPanel" class="gf-panel" hidden>
+          <table class="gf-table">
+            <tbody>
+              <tr>
+                <th scope="row"><label for="gfLow" data-i18n="gfLow">GF bas</label></th>
+                <td><input id="gfLow" type="number" inputmode="numeric" min="5" max="100" step="5" value="85"></td>
+                <td class="unit">%</td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="gfHigh" data-i18n="gfHigh">GF haut</label></th>
+                <td><input id="gfHigh" type="number" inputmode="numeric" min="5" max="100" step="5" value="85"></td>
+                <td class="unit">%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
       <button id="addGas" class="ghost" type="button" data-i18n="addGas">+ Gaz de déco</button>
 
       <details class="advanced">

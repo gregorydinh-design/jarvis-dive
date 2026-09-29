@@ -62,7 +62,14 @@ button { font: inherit; cursor: pointer; border-radius: 10px; min-height: 44px; 
 .gas-role { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .gas-switch { flex-direction: row; align-items: center; gap: 6px; font-size: 12px; }
 .gas-switch input { font-size: 18px; padding: 10px 6px; text-align: center; }
-.gas.bottom .gas-switch, .gas.bottom .gas-del { visibility: hidden; }
+.gas.bottom .gas-switch, .gas.bottom .gas-del { display: none; }
+.gf-btn { grid-column: 3 / 5; background: var(--panel-2); color: var(--accent); border: 1px solid var(--line); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 0 8px; min-height: 48px; }
+.gf-btn[aria-expanded="true"] { border-color: var(--accent); }
+.gf-panel { grid-column: 1 / -1; justify-self: end; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.gf-table { width: auto; margin: 0; }
+.gf-table th, .gf-table td { border: 0; padding: 4px 6px; vertical-align: middle; }
+.gf-table th label { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.gf-table input { width: 84px; font-size: 18px; min-height: 42px; padding: 6px 10px; text-align: center; }
 .gas-del { border-style: solid; padding: 0; }
 .gas input.invalid { border-color: var(--danger); }
 

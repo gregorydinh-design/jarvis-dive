@@ -1,6 +1,6 @@
 // JARVIS DIVE — Service worker : tout le planificateur fonctionne hors ligne.
 // Incrémenter VERSION à chaque déploiement pour forcer la mise à jour du cache.
-const VERSION = 'jarvis-dive-v0.2.1';
+const VERSION = 'jarvis-dive-v0.2.2';
 const ASSETS = [
   './',
   'index.html',
