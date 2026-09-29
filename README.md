@@ -8,6 +8,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 - **Gaz minimum** : gaz nécessaire pour remonter à 2 plongeurs, SAC fond × 2, 1 min de résolution au fond, jusqu'au premier switch.
 - **Plans de secours** : +5 min, +3 m, +3 m +5 min, et perte de chaque gaz de déco.
 - **Plongée successive** : la plongée en cours devient la n°1 ; tissus, CNS (demi-vie 90 min) et OTU sont reportés après l'intervalle de surface.
+- **Commandes vocales** : champ « Commande » (micro du clavier iOS) : « 40 mètres 25 minutes EAN27, EAN47 à 12, oxygène à 6 », « ajoute 5 minutes », « bloc fond bi 12 »… Analyseur hors ligne sans LLM, réponse lue à voix haute, lien `?cmd=` pour Raccourcis / Siri.
 - **Langues** : français / anglais (bouton FR | EN, langue du téléphone par défaut).
 - **Hors ligne** : service worker, installable depuis Safari (Partager → Sur l'écran d'accueil).
 
@@ -46,6 +47,9 @@ engine/oxygen.js   CNS, OTU
 engine/planner.js  Planificateur multi-gaz
 engine/errors.js   Codes d'erreur traduisibles
 engine/scenarios.js  Plans de secours, perte de gaz, plongées successives
+assistant/commands.js  Outils de pilotage du plan (schéma OpenAI, validation)
+assistant/parser.js    Phrases FR/EN → appels d'outils, hors ligne
+assistant/summary.js   Résumé texte / vocal du plan
 i18n.js            Traductions FR / EN
 tests/run.js       Suite de tests (Node 18+)
 index.html, app.js, styles.css, sw.js, manifest.json   PWA

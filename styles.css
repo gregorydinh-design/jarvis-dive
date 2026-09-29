@@ -143,3 +143,15 @@ td.ok { color: var(--accent); }
 .sc-stops { display: block; font-size: 12px; color: var(--muted); }
 tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 .prev-limit { margin: 0 0 8px; font-size: 13px; color: var(--warn); }
+
+/* Barre de commande */
+.cmd-row { display: grid; grid-template-columns: 1fr 64px; gap: 8px; }
+.cmd-row input { font-size: 17px; }
+.primary { background: var(--accent); color: var(--accent-ink); border: 0; font-weight: 800; }
+.cmd-tools { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.cmd-tools .ghost { min-height: 40px; padding: 6px 14px; }
+.cmd-tools .icon-btn[aria-pressed="false"] { opacity: 0.5; }
+.cmd-log { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.cmd-log li { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; }
+.cmd-log li.err { border-color: var(--danger); color: var(--danger); border-radius: 8px; }
+.cmd-log li.said { border: 0; background: transparent; color: var(--muted); padding-left: 0; font-style: italic; width: 100%; }

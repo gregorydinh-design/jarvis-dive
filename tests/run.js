@@ -4,6 +4,8 @@ import { parseGas, mod, end, defaultSwitchDepth } from '../engine/gases.js';
 import { cnsLimit } from '../engine/oxygen.js';
 import { planDive } from '../engine/planner.js';
 import { contingencyPlans, withPreviousDive, surfaceInterval, cnsAfterInterval } from '../engine/scenarios.js';
+import { applyToolCalls, applyToolCall, TOOLS } from '../assistant/commands.js';
+import { parseCommand } from '../assistant/parser.js';
 
 let failed = 0;
 let passed = 0;
@@ -212,6 +214,39 @@ console.log('\n9. Plongée successive');
   check('CNS divisé par 2 en 90 min', close(cnsAfterInterval(40, 90), 20, 1e-9));
   const t = surfaceInterval(planDive(d1).tissuesAtSurface, env, 60);
   check('Désaturation en surface', t.n2[0] < planDive(d1).tissuesAtSurface.n2[0]);
+}
+
+
+console.log('\n10. Commandes vocales : analyseur + outils');
+{
+  const base = { depth: 40, bottomTime: 20, gfLow: 85, gfHigh: 85, gases: [{ mix: 'Air', switchDepth: null, volume: 12, startPressure: 200 }] };
+  const run = (text, st = base) => applyToolCalls(st, parseCommand(text, st).calls).state;
+  const full = run('40 mètres 25 minutes EAN27, EAN47 à 12, oxygène à 6, GF 85 85');
+  check('Phrase complète → formulaire', full.depth === 40 && full.bottomTime === 25 && full.gases.map((g) => `${g.mix}@${g.switchDepth ?? '-'}`).join(' ') === 'EAN27@- EAN47@12 O2@6',
+    full.gases.map((g) => `${g.mix}@${g.switchDepth ?? '-'}`).join(' '));
+  check('« ajoute 5 minutes »', run('ajoute 5 minutes', full).bottomTime === 30);
+  check('« 3 mètres de plus »', run('3 mètres de plus', full).depth === 43);
+  check('« enlève l\'EAN47 »', run('enlève l\'EAN47', full).gases.length === 2);
+  check('« bloc fond bi 12 »', run('bloc fond bi 12', full).gases[0].volume === 24);
+  check('« bloc de 15 litres à 230 bars »', (() => { const g = run('bloc de 15 litres à 230 bars').gases[0]; return g.volume === 15 && g.startPressure === 230; })());
+  check('« GF 30 sur 85 »', (() => { const x = run('GF 30 sur 85'); return x.gfLow === 30 && x.gfHigh === 85; })());
+  check('Nombres en lettres', (() => { const x = run('quarante-cinq mètres vingt-cinq minutes'); return x.depth === 45 && x.bottomTime === 25; })());
+  check('« nitrox 32 à 30 mètres » = gaz fond', (() => { const x = run('nitrox 32 à 30 mètres 40 minutes'); return x.gases[0].mix === 'EAN32' && x.depth === 30 && x.bottomTime === 40; })());
+  check('« EAN50 à 21 » = gaz de déco', run('EAN50 à 21').gases[1].switchDepth === 21);
+  check('Anglais', (() => { const x = run('40 meters 25 minutes on EAN27, EAN50 at 21, oxygen at 6'); return x.gases.length === 3 && x.gases[0].mix === 'EAN27'; })());
+  check('Trimix', run('trimix 18/45 à 60 m 20 min, EAN50 à 21, O2 à 6').gases[0].mix === 'TX18/45');
+  // Validation : un outil hors limites est refusé et l'état n'est pas modifié
+  let refused = false;
+  try { applyToolCall(base, { name: 'set_dive', args: { depth: 400 } }); } catch (e) { refused = e.code === 'x_RANGE'; }
+  check('Profondeur 400 m refusée', refused);
+  refused = false;
+  try { applyToolCall(base, { name: 'remove_gas', args: { mix: 'Air' } }); } catch (e) { refused = e.code === 'x_REMOVE_BOTTOM'; }
+  check('Impossible de retirer le gaz fond', refused);
+  check('7 outils exposés au LLM', TOOLS.length === 7);
+  // Le plan issu d'une commande est identique au plan saisi à la main
+  const fromVoice = planDive({ ...full, gases: full.gases.map((g) => ({ ...parseGas(g.mix, g.switchDepth), volume: g.volume, startPressure: g.startPressure })) });
+  const byHand = planDive({ depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [parseGas('EAN27'), parseGas('EAN47', 12), parseGas('O2', 6)] });
+  check('Plan vocal = plan manuel', fromVoice.runtime === byHand.runtime && fromVoice.decoTime === byHand.decoTime);
 }
 
 console.log(`\n${passed} réussis, ${failed} échoué(s)\n`);

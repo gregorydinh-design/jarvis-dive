@@ -29,6 +29,19 @@
   </header>
 
   <main>
+    <section class="card cmd" aria-labelledby="h-cmd">
+      <h2 id="h-cmd" data-i18n="cmdTitle">Commande</h2>
+      <form id="cmdForm" class="cmd-row" autocomplete="off">
+        <input id="cmdInput" type="text" enterkeyhint="send" autocapitalize="off" spellcheck="false" data-i18n-placeholder="cmdPlaceholder" placeholder="Dictez ou tapez une commande">
+        <button id="cmdGo" type="submit" class="primary" data-i18n="cmdGo">OK</button>
+      </form>
+      <div class="cmd-tools">
+        <button id="cmdRead" type="button" class="ghost" data-i18n="cmdRead">Lire</button>
+        <button id="cmdVoice" type="button" class="icon-btn" aria-pressed="true">🔊</button>
+      </div>
+      <ul id="cmdLog" class="cmd-log" aria-live="polite"></ul>
+    </section>
+
     <section class="card" aria-labelledby="h-plan">
       <h2 id="h-plan" data-i18n="dive">Plongée</h2>
       <div class="grid2">

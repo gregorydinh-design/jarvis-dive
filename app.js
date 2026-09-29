@@ -4,6 +4,9 @@ import { parseGas, defaultSwitchDepth, mod } from './engine/gases.js';
 import { createEnvironment } from './engine/zhl16c.js';
 import { contingencyPlans, withPreviousDive } from './engine/scenarios.js';
 import { detectLang, saveLang, makeT } from './i18n.js';
+import { parseCommand } from './assistant/parser.js';
+import { applyToolCalls } from './assistant/commands.js';
+import { planSummary } from './assistant/summary.js';
 
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'jarvis-dive:v3';
@@ -118,6 +121,8 @@ function applyLang() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder)));
+  refreshVoiceButton();
   document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   refreshRoles();
   renderCylinders();
@@ -125,6 +130,11 @@ function applyLang() {
 }
 
 function errorText(e) {
+  if (e && e.code && e.code.startsWith('x_')) {
+    const p = { ...e.params };
+    if (p.field) p.field = t('f_' + p.field);
+    return t(e.code, p);
+  }
   return e && e.code ? t('e_' + e.code, e.params) : String(e && e.message ? e.message : e);
 }
 
@@ -308,6 +318,8 @@ function render(plan, cfg) {
     <p class="meta">${t('meta', { end: fmt(plan.endBottom), rho: fmt(plan.densityBottom, 1), pp: fmt(plan.maxPpO2, 2) })}</p>`;
 }
 
+let lastPlan = null;
+
 function update() {
   refreshGfButton();
   save();
@@ -315,13 +327,103 @@ function update() {
     let cfg = readConfig();
     if (previousDive) cfg = withPreviousDive(cfg, previousDive, cfg.surfaceInterval).input;
     const plan = planDive(cfg);
+    lastPlan = plan;
     updateBadges(plan, cfg.reservePressure);
     render(plan, cfg);
   } catch (e) {
+    lastPlan = null;
     updateBadges(null, 0);
     $('result').innerHTML = `<h2>${t('plan')}</h2><p class="error">${esc(errorText(e))}</p>`;
   }
 }
+
+// ---------- Commandes (dictée iOS ou texte) ----------
+// État « métier » du formulaire, lu et écrit par les outils (assistant/commands.js).
+function getState() {
+  return {
+    depth: parseFloat($('depth').value),
+    bottomTime: parseFloat($('bottomTime').value),
+    gfLow: parseFloat($('gfLow').value),
+    gfHigh: parseFloat($('gfHigh').value),
+    gases: rows().map((row, i) => ({
+      mix: row.querySelector('.gas-mix').value,
+      switchDepth: i === 0 ? null : parseFloat(row.querySelector('.gas-depth').value),
+      volume: row.cyl.vol,
+      startPressure: row.cyl.bar,
+    })),
+  };
+}
+
+function setState(st) {
+  $('depth').value = st.depth;
+  $('bottomTime').value = st.bottomTime;
+  $('gfLow').value = st.gfLow;
+  $('gfHigh').value = st.gfHigh;
+  $('gfHolder').append(gfBtn, gfPanel); // mis à l'abri avant de reconstruire les lignes
+  gasList.innerHTML = '';
+  st.gases.forEach((g, i) => addGasRow({
+    mix: g.mix, depth: i === 0 ? '' : g.switchDepth, auto: false, vol: g.volume, bar: g.startPressure,
+  }));
+  renderCylinders();
+}
+
+let voiceOn = (() => { try { return localStorage.getItem('jarvis-dive:voice') !== '0'; } catch { return true; } })();
+function refreshVoiceButton() {
+  const b = $('cmdVoice');
+  b.setAttribute('aria-pressed', String(voiceOn));
+  b.setAttribute('aria-label', voiceOn ? t('cmdVoiceOn') : t('cmdVoiceOff'));
+  b.textContent = voiceOn ? '🔊' : '🔇';
+}
+
+function speak(text) {
+  if (!voiceOn || !('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+  window.speechSynthesis.speak(u);
+}
+
+function logCommand(said, items, isError = false) {
+  const log = $('cmdLog');
+  log.innerHTML = `<li class="said">« ${esc(said)} »</li>` + items.map((x) => `<li class="${isError ? 'err' : ''}">${esc(x)}</li>`).join('');
+}
+
+function runCommand(text, { voice = true } = {}) {
+  const said = String(text || '').trim();
+  if (!said) return;
+  const { calls } = parseCommand(said, getState());
+  if (!calls.length) {
+    logCommand(said, [t('cmdNotUnderstood')], true);
+    if (voice) speak(t('cmdNotUnderstood'));
+    return;
+  }
+  try {
+    const { state, changes } = applyToolCalls(getState(), calls);
+    const wantsReadOnly = calls.every((c) => c.name === 'get_plan');
+    if (!wantsReadOnly) setState(state);
+    update();
+    const items = changes.map((c) => t(c.code, c.params));
+    logCommand(said, items.length ? items : [wantsReadOnly ? t('cmdRead') : t('cmdNothing')]);
+    if (voice && lastPlan) speak(planSummary(lastPlan, t, { spoken: true }));
+  } catch (e) {
+    logCommand(said, [errorText(e)], true);
+    if (voice) speak(errorText(e));
+  }
+}
+
+$('cmdForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  runCommand($('cmdInput').value);
+  $('cmdInput').value = '';
+  $('cmdInput').blur();
+});
+$('cmdRead').addEventListener('click', () => { if (lastPlan) speak(planSummary(lastPlan, t, { spoken: true })); });
+$('cmdVoice').addEventListener('click', () => {
+  voiceOn = !voiceOn;
+  try { localStorage.setItem('jarvis-dive:voice', voiceOn ? '1' : '0'); } catch { /* sans conséquence */ }
+  if (!voiceOn && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  refreshVoiceButton();
+});
 
 // ---------- Démarrage ----------
 restore();
@@ -341,6 +443,15 @@ $('addGas').addEventListener('click', () => {
 });
 for (const f of NUM_FIELDS) $(f).addEventListener('input', update);
 update();
+
+// Lien de commande : …/jarvis-dive/?cmd=40 mètres 25 minutes (Raccourcis / Siri)
+(() => {
+  const params = new URLSearchParams(location.search);
+  const cmd = params.get('cmd');
+  if (!cmd) return;
+  runCommand(cmd, { voice: false }); // Safari bloque la voix sans appui : bouton « Lire » disponible
+  history.replaceState(null, '', location.pathname);
+})();
 
 // Hors ligne
 const setOffline = () => { $('offline').hidden = navigator.onLine; };
