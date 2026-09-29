@@ -30,7 +30,7 @@
   <header class="top">
     <div>
       <h1>JARVIS <span>LLM</span></h1>
-      <p class="sub">Banc d'essai : un petit modèle dans Safari (WebGPU) · <span id="ver">v0.5.2</span></p>
+      <p class="sub">Banc d'essai : un petit modèle dans Safari (WebGPU) · <span id="ver">v0.5.3</span></p>
     </div>
     <a class="pill" href="./" style="text-decoration:none">← App</a>
   </header>
@@ -114,6 +114,6 @@
     window.addEventListener('error', function (ev) { showJsError(ev.message + (ev.filename ? ' (' + ev.filename.split('/').pop() + ':' + ev.lineno + ')' : '')); });
     window.addEventListener('unhandledrejection', function (ev) { showJsError(ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason)); });
   </script>
-  <script type="module" src="llm-test.js?v=052"></script>
+  <script type="module" src="llm-test.js?v=053"></script>
 </body>
 </html>

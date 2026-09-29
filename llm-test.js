@@ -1,7 +1,7 @@
 // JARVIS DIVE — Banc d'essai LLM dans Safari (WebLLM + WebGPU)
 const WEBLLM_URL = 'https://esm.run/@mlc-ai/web-llm@0.2.85';
 let webllm = null; // chargé à la demande : la page reste utilisable si la bibliothèque est injoignable
-import { buildCommandMessages, readCalls, CALLS_SCHEMA, buildQuestionMessages } from './assistant/llm.js?v=052';
+import { buildCommandMessages, readCalls, CALLS_SCHEMA, buildQuestionMessages } from './assistant/llm.js?v=053';
 import { applyToolCalls } from './assistant/commands.js';
 import { parseCommand } from './assistant/parser.js';
 import { planSummary } from './assistant/summary.js';
@@ -250,9 +250,9 @@ $('ask').addEventListener('click', async () => {
 // ---------------------------------------------------------------------------
 // 5. Conversation vocale : le LLM comprend et choisit, JARVIS calcule et parle.
 // ---------------------------------------------------------------------------
-import { buildDialogMessages, readDialog, DIALOG_SCHEMA } from './assistant/llm.js?v=052';
-import { understand } from './assistant/intents.js?v=052';
-import { renderFacts } from './assistant/facts.js?v=052';
+import { buildDialogMessages, readDialog, DIALOG_SCHEMA } from './assistant/llm.js?v=053';
+import { understand } from './assistant/intents.js?v=053';
+import { renderFacts } from './assistant/facts.js?v=053';
 
 const CONV_START = {
   depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85,

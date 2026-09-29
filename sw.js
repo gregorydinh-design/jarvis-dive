@@ -1,6 +1,6 @@
 // JARVIS DIVE — Service worker : tout le planificateur fonctionne hors ligne.
 // Incrémenter VERSION à chaque déploiement pour forcer la mise à jour du cache.
-const VERSION = 'jarvis-dive-v0.5.0';
+const VERSION = 'jarvis-dive-v0.5.3';
 const ASSETS = [
   './',
   'index.html',
@@ -16,6 +16,9 @@ const ASSETS = [
   'assistant/commands.js',
   'assistant/parser.js',
   'assistant/summary.js',
+  'assistant/intents.js',
+  'assistant/facts.js',
+  'assistant/llm.js',
   'i18n.js',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -34,11 +37,26 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Cache d'abord pour les fichiers de l'app ; les appels au LLM (autre origine) ne sont jamais interceptés.
+// Réseau d'abord (version à jour dès qu'il y a du réseau), copie locale sinon (hors ligne).
+// Chaque réponse réseau met la copie locale à jour. Les appels à d'autres sites (LLM, WebLLM) ne sont pas interceptés.
+const NETWORK_TIMEOUT_MS = 3000;
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
-  event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then((hit) => hit || fetch(event.request)),
-  );
+  event.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    try {
+      const response = await Promise.race([
+        fetch(event.request, { cache: 'no-cache' }), // revalide auprès de GitHub Pages
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), NETWORK_TIMEOUT_MS)),
+      ]);
+      if (response && response.ok) cache.put(event.request, response.clone());
+      return response;
+    } catch {
+      const hit = await cache.match(event.request, { ignoreSearch: true });
+      if (hit) return hit;
+      return new Response('Hors ligne et pas de copie locale.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+  })());
 });
