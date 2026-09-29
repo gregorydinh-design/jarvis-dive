@@ -77,6 +77,12 @@ export function parseCommand(text, state = null) {
   each(/\b(plus profond|deeper|moins profond|shallower) de (\d{1,3})\s?(?:metres?|meters?|m)?\b/g,
     (m) => calls.push({ name: 'set_dive', args: { add_depth: (/moins|shallower/.test(m[1]) ? -1 : 1) * +m[2] } }));
 
+  // 2b. Limite de runtime du DP : « runtime max 45 », « retour bateau à 45 minutes », « le DP veut qu'on sorte à 45 minutes »
+  each(/\b(?:runtime (?:max(?:imum|i)?|maximal|limite)|runtime|retour (?:au |sur le |bateau)?(?:bateau )?|sortie (?:de l eau )?|sortir (?:de l eau )?|remonter|back on the boat|back at the boat|max runtime)(?:[a-z ]{0,20}?)\s(?:a|en|au bout de|at|in|de)?\s?(\d{1,3})\s?(?:minutes?|min|mn)?\b/g,
+    (m) => calls.push({ name: 'set_runtime_limit', args: { minutes: +m[1] } }));
+  each(/\b(?:pas de|sans|enleve la|retire la|no|remove the) (?:limite de runtime|limite|runtime limit|limit)\b/g,
+    () => calls.push({ name: 'set_runtime_limit', args: { minutes: 0 } }));
+
   // 3. Gradient factors : "gf 30 85", "gf 30/85", "gf 30 sur 85", "gf 85"
   each(/\b(?:gf|gradient factors?|g f)\s(\d{1,3})(?:\s?(?:\/|sur|over|\s)\s?(\d{1,3}))?\b/g,
     (m) => calls.push({ name: 'set_gf', args: { low: +m[1], high: +(m[2] ?? m[1]) } }));
@@ -148,7 +154,7 @@ export function parseCommand(text, state = null) {
   }
 
   // Un bloc se règle après la création de son gaz ; un bloc « bottom » vise le gaz fond final.
-  const ORDER = { set_bottom_gas: 0, remove_gas: 1, add_deco_gas: 1, set_dive: 2, set_gf: 2, set_cylinder: 3, get_plan: 4 };
+  const ORDER = { set_bottom_gas: 0, remove_gas: 1, add_deco_gas: 1, set_dive: 2, set_gf: 2, set_runtime_limit: 2, set_cylinder: 3, get_plan: 4 };
   const bottomMix = calls.find((c) => c.name === 'set_bottom_gas')?.args.mix;
   for (const c of calls) if (c.name === 'set_cylinder' && c.pending && bottomMix && c.args.gas === bottomMix) c.args.gas = 'bottom';
   const sorted = calls.map((c, i) => ({ c, i })).sort((x, y) => (ORDER[x.c.name] - ORDER[y.c.name]) || (x.i - y.i)).map((x) => x.c);

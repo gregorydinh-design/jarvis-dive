@@ -6,6 +6,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 - **Gaz** : OC multi-gaz avec switch libre (chaque gaz de déco est pris à la profondeur que vous choisissez).
 - **Blocs** : volume et pression de départ par gaz (200 bar par défaut), pression restante affichée sur chaque gaz, alerte rouge sous 50 bar (réglable).
 - **Gaz minimum** : gaz nécessaire pour remonter à 2 plongeurs, SAC fond × 2, 1 min de résolution au fond, jusqu'au premier switch.
+- **Runtime max (DP)** : heure de sortie imposée par le directeur de plongée ; alerte si dépassée, et temps fond maximum calculé (limité par le runtime ou par le gaz).
 - **Plans de secours** : +5 min, +3 m, +3 m +5 min, et perte de chaque gaz de déco.
 - **Plongée successive** : la plongée en cours devient la n°1 ; tissus, CNS (demi-vie 90 min) et OTU sont reportés après l'intervalle de surface.
 - **Parler à JARVIS** : bouton 🎙 (reconnaissance vocale de Safari) ou micro du clavier. Commandes (« 40 mètres 25 minutes EAN27, EAN47 à 12, oxygène à 6 », « rajoute 5 minutes », « bloc fond bi 12 ») et questions (« mon gaz fond tient ? », « et si je perds l'oxy ? », « et avec 10 minutes de plus ? »). Réponses lues à voix haute, **chiffres toujours calculés par le moteur**. Lien `?cmd=` pour Raccourcis / Siri.

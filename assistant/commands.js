@@ -20,6 +20,7 @@ const LIMITS = {
   volume: [1, 50],
   pressure: [20, 300],
   switchDepth: [0, 150],
+  runtimeLimit: [5, 600],
 };
 
 const CYL_BOTTOM = { volume: 12, startPressure: 200 };
@@ -97,6 +98,14 @@ export const TOOLS = [
         properties: { gas: { type: 'string' }, volume: { type: 'number' }, pressure: { type: 'number' } },
         required: ['gas'],
       },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_runtime_limit',
+      description: 'Runtime maximum imposé par le directeur de plongée (retour au bateau), en minutes. 0 = aucune limite.',
+      parameters: { type: 'object', properties: { minutes: { type: 'number' } }, required: ['minutes'] },
     },
   },
   {
@@ -188,6 +197,12 @@ export function applyToolCall(state, call, envOptions = {}) {
       if (vol !== undefined) s.gases[idx].volume = inRange('volume', vol);
       if (bar !== undefined) s.gases[idx].startPressure = inRange('pressure', bar);
       changes.push({ code: 'c_CYL', params: { gas: parseGas(s.gases[idx].mix).name, volume: s.gases[idx].volume, pressure: s.gases[idx].startPressure } });
+      break;
+    }
+    case 'set_runtime_limit': {
+      const m = num(a.minutes);
+      s.runtimeLimit = m ? inRange('runtimeLimit', m) : null;
+      changes.push({ code: s.runtimeLimit ? 'c_RUNTIME' : 'c_RUNTIME_OFF', params: { value: s.runtimeLimit } });
       break;
     }
     case 'get_plan':

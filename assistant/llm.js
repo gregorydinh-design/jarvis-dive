@@ -30,6 +30,7 @@ export const CALLS_SCHEMA = JSON.stringify({
               gas: { type: 'string' },
               volume: { type: 'number' },
               pressure: { type: 'number' },
+              minutes: { type: 'number' },
             },
           },
         },
@@ -141,6 +142,7 @@ calls = modifications du plan :
 - set_gf {low, high}
 - set_bottom_gas {mix} ; add_deco_gas {mix, switch_depth} ; remove_gas {mix}
 - set_cylinder {gas, volume, pressure} ("bottom" = bloc fond ; bi 12 = 24)
+- set_runtime_limit {minutes} : heure de sortie imposée par le DP (retour bateau), 0 = aucune
 
 facts = informations à annoncer :
 - summary : résumé du plan ; stops : tous les paliers ; first_stop ; longest_stop
@@ -150,6 +152,7 @@ facts = informations à annoncer :
 - plus_time {minutes} : « et si je reste N minutes de plus ? » (question, sans modifier le plan)
 - plus_depth {meters} : « et si je descends N mètres plus bas ? »
 - lost_gas {gas} : « et si je perds tel gaz ? »
+- max_bottom : temps fond maximum (limite du DP, gaz)
 
 note = phrase courte SANS AUCUN CHIFFRE (salutation, ou "je n'ai pas compris"), sinon "".
 Après une modification du plan, ajoute toujours le fait "summary".

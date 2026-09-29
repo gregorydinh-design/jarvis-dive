@@ -2,7 +2,7 @@
 import { planDive } from './engine/planner.js';
 import { parseGas, defaultSwitchDepth, mod } from './engine/gases.js';
 import { createEnvironment } from './engine/zhl16c.js';
-import { contingencyPlans, withPreviousDive } from './engine/scenarios.js';
+import { contingencyPlans, withPreviousDive, maxBottomTime } from './engine/scenarios.js';
 import { detectLang, saveLang, makeT } from './i18n.js';
 import { applyToolCalls } from './assistant/commands.js';
 import { planSummary } from './assistant/summary.js';
@@ -14,7 +14,7 @@ const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'jarvis-dive:v3';
 const NUM_FIELDS = ['depth', 'bottomTime', 'gfLow', 'gfHigh', 'descentRate', 'ascentRate', 'lastStop',
   'switchStopMin', 'ppO2Bottom', 'waterDensity', 'sacBottom', 'sacDeco',
-  'reservePressure', 'minGasDivers', 'minGasStressFactor', 'minGasProblemMin', 'surfaceInterval'];
+  'reservePressure', 'minGasDivers', 'minGasStressFactor', 'minGasProblemMin', 'surfaceInterval', 'runtimeLimit'];
 const CYL_BOTTOM = { vol: 12, bar: 200 };
 const CYL_DECO = { vol: 7, bar: 200 };
 const DEFAULT_GASES = [{ mix: 'Air', depth: '', ...CYL_BOTTOM }];
@@ -270,6 +270,16 @@ function contingencyTable(cfg) {
   return `<table><thead><tr><th>${t('scenario')}</th><th class="num">${t('tts').replace(' min', '')}</th><th class="num">Runtime</th><th class="num">${t('minLeft')}</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 
+function maxBottomLine(cfg) {
+  const m = maxBottomTime(cfg);
+  if (m.max == null) return '';
+  const over = cfg.bottomTime > m.max;
+  let html = cfg.runtimeLimit > 0 ? t('maxBottomRuntime', { limit: cfg.runtimeLimit, mb: m.max }) : t('maxBottomGas', { mb: m.max });
+  if (cfg.runtimeLimit > 0 && m.limitedBy === 'runtime' && m.byGas != null) html += esc(t('maxBottomBoth', { gas: m.byGas }));
+  if (cfg.runtimeLimit > 0 && m.limitedBy === 'gas') html += esc(t('maxBottomGasFirst'));
+  return `<p class="mingas ${over ? 'low' : ''}">${html}</p>`;
+}
+
 function render(plan, cfg) {
   const e = env();
   const stopRows = [];
@@ -308,6 +318,7 @@ function render(plan, cfg) {
       <div class="tile"><b>${fmt(plan.cns)}%</b><span>CNS</span></div>
       <div class="tile"><b>${fmt(plan.otu)}</b><span>OTU</span></div>
     </div>
+    ${maxBottomLine(cfg)}
     ${plan.repetitive ? `<p class="meta">${esc(t('repetNote'))}</p>` : ''}
     ${warnings}
     ${profileSvg(plan)}
@@ -351,6 +362,7 @@ function getState() {
     bottomTime: parseFloat($('bottomTime').value),
     gfLow: parseFloat($('gfLow').value),
     gfHigh: parseFloat($('gfHigh').value),
+    runtimeLimit: parseFloat($('runtimeLimit').value) || null,
     gases: rows().map((row, i) => ({
       mix: row.querySelector('.gas-mix').value,
       switchDepth: i === 0 ? null : parseFloat(row.querySelector('.gas-depth').value),
@@ -365,6 +377,7 @@ function setState(st) {
   $('bottomTime').value = st.bottomTime;
   $('gfLow').value = st.gfLow;
   $('gfHigh').value = st.gfHigh;
+  $('runtimeLimit').value = st.runtimeLimit || '';
   $('gfHolder').append(gfBtn, gfPanel); // mis à l'abri avant de reconstruire les lignes
   gasList.innerHTML = '';
   st.gases.forEach((g, i) => addGasRow({

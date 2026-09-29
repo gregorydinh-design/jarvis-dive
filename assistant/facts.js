@@ -1,14 +1,14 @@
 // JARVIS DIVE — Faits vérifiés : chaque réponse chiffrée vient d'ici, calculée par le moteur.
 // Le LLM choisit QUELS faits annoncer ; il n'écrit jamais lui-même un chiffre.
 
-import { contingencyPlans } from '../engine/scenarios.js';
+import { contingencyPlans, maxBottomTime } from '../engine/scenarios.js';
 import { planDive } from '../engine/planner.js';
 import { parseGas } from '../engine/gases.js';
 
 export const FACT_IDS = [
   'summary', 'stops', 'first_stop', 'longest_stop', 'tts', 'runtime',
   'gas_bottom', 'gas_all', 'min_gas', 'oxygen', 'switches', 'alerts',
-  'plus_time', 'plus_depth', 'lost_gas', 'ndl',
+  'plus_time', 'plus_depth', 'lost_gas', 'ndl', 'max_bottom',
 ];
 
 const TXT = {
@@ -46,6 +46,8 @@ const TXT = {
     notInPlan: (g) => `${cap(say(g, 'fr'))} ne fait pas partie du plan.`,
     ndl: (p) => (p.ndl > 0 ? `Il te reste ${p.ndl} minutes sans palier en fin de fond.` : 'Tu es en décompression : pas de marge sans palier.'),
     lowest: (g, bar) => ` Bloc le plus bas : ${say(g, 'fr')} à ${bar} bars.`,
+    maxBottom: (m, limit, p) => (m.max == null ? 'Aucune limite : renseigne un runtime max ou tes blocs.'
+      : `${limit ? `Pour sortir avant ${limit} minutes, ` : ''}tu peux rester au plus ${m.max} minutes au fond, limité par ${m.limitedBy === 'runtime' ? 'le runtime' : 'ton gaz'}.${m.limitedBy === 'runtime' && m.byGas != null ? ` Ton gaz permettrait ${m.byGas} minutes.` : ''} Tu as prévu ${p.input.bottomTime} minutes.`),
   },
   en: {
     noStop: (ndl) => `No mandatory stop, ${ndl} minutes of margin left at the bottom.`,
@@ -81,6 +83,8 @@ const TXT = {
     notInPlan: (g) => `${cap(say(g, 'en'))} is not part of the plan.`,
     ndl: (p) => (p.ndl > 0 ? `${p.ndl} no-stop minutes left at the end of the bottom.` : 'You are in decompression: no no-stop margin.'),
     lowest: (g, bar) => ` Lowest cylinder: ${say(g, 'en')} at ${bar} bar.`,
+    maxBottom: (m, limit, p) => (m.max == null ? 'No limit: set a max runtime or your cylinders.'
+      : `${limit ? `To be out within ${limit} minutes, ` : ''}you can stay at most ${m.max} minutes at the bottom, limited by ${m.limitedBy === 'runtime' ? 'the runtime' : 'your gas'}.${m.limitedBy === 'runtime' && m.byGas != null ? ` Your gas would allow ${m.byGas} minutes.` : ''} You planned ${p.input.bottomTime} minutes.`),
   },
 };
 
@@ -170,6 +174,7 @@ export function renderFacts(requests, ctx, lang = 'fr') {
         else sc().filter((x) => x.key === 'LOST_GAS').forEach((x) => out.push(T.scenario(T.lost(x.gas), x)));
         break;
       }
+      case 'max_bottom': out.push(T.maxBottom(maxBottomTime(input), input.runtimeLimit > 0 ? input.runtimeLimit : null, plan)); break;
       default: out.push(T[req.id](plan));
     }
   }

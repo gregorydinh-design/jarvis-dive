@@ -38,6 +38,8 @@ export const DEFAULTS = Object.freeze({
   initialTissues: null,    // état des tissus en début de plongée (sinon saturation air en surface)
   initialCns: 0,
   initialOtu: 0,
+  // Consigne du DP : runtime maximum (min), null = aucune
+  runtimeLimit: null,
 });
 
 const EPS = 1e-9;
@@ -228,6 +230,11 @@ export function planDive(input) {
   else if (cns > 80) warnings.push({ level: 'warn', code: 'CNS', params: { cns, limit: 80 }, message: `CNS ${cns.toFixed(0)} % > 80 %` });
   if (maxPpO2 > 1.6 + cfg.ppO2Tolerance) warnings.push({ level: 'danger', code: 'PPO2_MAX', params: { pp: maxPpO2 }, message: `ppO2 max ${maxPpO2.toFixed(2)} bar` });
 
+  if (cfg.runtimeLimit > 0 && runtime > cfg.runtimeLimit + EPS) {
+    warnings.push({ level: 'danger', code: 'RUNTIME_LIMIT', params: { runtime, limit: cfg.runtimeLimit },
+      message: `Runtime ${Math.round(runtime)} min > limite DP ${cfg.runtimeLimit} min` });
+  }
+
   // ---------- Gaz minimum (rock bottom) sur le gaz fond ----------
   // Remontée à plusieurs plongeurs, SAC de stress, depuis la fin du fond jusqu'au premier switch (ou la surface).
   let exposure = env.pressure(cfg.depth) * cfg.minGasProblemMin; // bar·min
@@ -265,7 +272,7 @@ export function planDive(input) {
   }
 
   return {
-    input: { depth: cfg.depth, bottomTime: cfg.bottomTime, gfLow: cfg.gfLow, gfHigh: cfg.gfHigh, lastStop: cfg.lastStop },
+    input: { depth: cfg.depth, bottomTime: cfg.bottomTime, gfLow: cfg.gfLow, gfHigh: cfg.gfHigh, lastStop: cfg.lastStop, runtimeLimit: cfg.runtimeLimit > 0 ? cfg.runtimeLimit : null },
     gases: gasesOut,
     minGas,
     segments,

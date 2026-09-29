@@ -34,11 +34,12 @@ export function parseQuestion(text) {
     if (/\b(fond|bottom|principal|dos)\b/.test(s)) { add('gas_bottom'); add('min_gas'); } else add('gas_all');
   }
   if (/\b(gaz mini|gas mini|minimum gas|rock bottom|demi tour|turn pressure)\b/.test(s)) add('min_gas');
+  if (/\b(temps (?:fond )?max(?:imum|i)?|combien de temps (?:je peux|on peut) rester|rester combien|max(?:imum)? bottom time|how long can (?:i|we) stay)\b/.test(s)) add('max_bottom');
   if (/\b(plus long|longest)\b/.test(s)) add('longest_stop');
   if (/\b(premier palier|first stop)\b/.test(s)) add('first_stop');
   else if (/\b(paliers|stops|deco)\b/.test(s) && !f.some((x) => x.id === 'lost_gas')) add('stops');
   if (/\b(dtr|tts|remontee|time to surface|ascent time)\b/.test(s)) add('tts');
-  if (/\b(runtime|duree totale|total time|combien de temps)\b/.test(s)) add('runtime');
+  if (/\b(runtime|duree totale|total time|combien de temps)\b/.test(s) && !f.some((x) => x.id === 'max_bottom')) add('runtime');
   if (/\b(cns|otu|toxicite|toxicity)\b/.test(s)) add('oxygen');
   if (/\b(change|changer|switch|switches|bascule)\b/.test(s)) add('switches');
   if (/\b(alerte|alertes|danger|probleme|risque|c est bon|ca passe|ok|safe|warning|warnings)\b/.test(s)) { add('alerts'); add('summary'); }

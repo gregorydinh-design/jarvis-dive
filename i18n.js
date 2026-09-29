@@ -126,6 +126,16 @@ const fr = {
   s_alerts: 'Attention : {list}.',
   s_o2: 'oxygène',
   s_air: 'air',
+  runtimeLimit: 'Runtime max (DP)',
+  runtimeLimitUnit: 'min, optionnel',
+  maxBottomRuntime: 'Temps fond max pour sortir avant {limit} min : <b>{mb} min</b>',
+  maxBottomGas: 'Temps fond max selon ton gaz : <b>{mb} min</b>',
+  maxBottomBoth: ' (le gaz permettrait {gas} min)',
+  maxBottomGasFirst: ' (limité par le gaz)',
+  c_RUNTIME: 'Runtime max {value} min',
+  c_RUNTIME_OFF: 'Pas de limite de runtime',
+  f_runtimeLimit: 'Runtime max',
+  w_RUNTIME_LIMIT: 'Runtime {runtime} min > limite DP {limit} min',
   // Alertes
   w_PPO2_BOTTOM: 'ppO2 fond {pp} bar > {max} (MOD {gas} : {mod} m)',
   w_END: 'END {end} m (narcose) avec {gas}',
@@ -273,6 +283,16 @@ const en = {
   s_alerts: 'Warning: {list}.',
   s_o2: 'oxygen',
   s_air: 'air',
+  runtimeLimit: 'Max runtime (DM)',
+  runtimeLimitUnit: 'min, optional',
+  maxBottomRuntime: 'Max bottom time to be out within {limit} min: <b>{mb} min</b>',
+  maxBottomGas: 'Max bottom time from your gas: <b>{mb} min</b>',
+  maxBottomBoth: ' (gas would allow {gas} min)',
+  maxBottomGasFirst: ' (limited by gas)',
+  c_RUNTIME: 'Max runtime {value} min',
+  c_RUNTIME_OFF: 'No runtime limit',
+  f_runtimeLimit: 'Max runtime',
+  w_RUNTIME_LIMIT: 'Runtime {runtime} min > DM limit {limit} min',
   w_PPO2_BOTTOM: 'Bottom ppO2 {pp} bar > {max} ({gas} MOD: {mod} m)',
   w_END: 'END {end} m (narcosis) on {gas}',
   w_DENSITY: 'Gas density {rho} g/L at bottom (recommended ≤ 5.2, max 6.2)',
@@ -296,7 +316,7 @@ export const DICTS = { fr, en };
 const LANG_KEY = 'jarvis-dive:lang';
 
 // Arrondi d'affichage des paramètres numériques d'alertes et d'erreurs
-const DECIMALS = { pp: 2, max: 2, mod: 1, end: 0, rho: 1, cns: 0, descent: 1, pressure: 0, minGas: 0 };
+const DECIMALS = { pp: 2, max: 2, mod: 1, end: 0, rho: 1, cns: 0, descent: 1, pressure: 0, minGas: 0, runtime: 0 };
 
 export function detectLang() {
   try {

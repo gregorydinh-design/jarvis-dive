@@ -3,7 +3,7 @@ import { createEnvironment, Tissues, loadSegment, ceilingPressure, PH2O, ZHL16C 
 import { parseGas, mod, end, defaultSwitchDepth } from '../engine/gases.js';
 import { cnsLimit } from '../engine/oxygen.js';
 import { planDive } from '../engine/planner.js';
-import { contingencyPlans, withPreviousDive, surfaceInterval, cnsAfterInterval } from '../engine/scenarios.js';
+import { contingencyPlans, withPreviousDive, surfaceInterval, cnsAfterInterval, maxBottomTime } from '../engine/scenarios.js';
 import { applyToolCalls, applyToolCall, TOOLS } from '../assistant/commands.js';
 import { parseCommand } from '../assistant/parser.js';
 import { interpret } from '../assistant/conversation.js';
@@ -255,7 +255,7 @@ console.log('\n10. Commandes vocales : analyseur + outils');
   refused = false;
   try { applyToolCall(base, { name: 'remove_gas', args: { mix: 'Air' } }); } catch (e) { refused = e.code === 'x_REMOVE_BOTTOM'; }
   check('Impossible de retirer le gaz fond', refused);
-  check('7 outils exposés au LLM', TOOLS.length === 7);
+  check('8 outils exposés au LLM', TOOLS.length === 8);
   // Le plan issu d'une commande est identique au plan saisi à la main
   const fromVoice = planDive({ ...full, gases: full.gases.map((g) => ({ ...parseGas(g.mix, g.switchDepth), volume: g.volume, startPressure: g.startPressure })) });
   const byHand = planDive({ depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [parseGas('EAN27'), parseGas('EAN47', 12), parseGas('O2', 6)] });
@@ -296,6 +296,27 @@ console.log('\n13. Plan complet dicté en une phrase');
   const b = run('30 mètres 45 minutes EAN32, bloc fond bi 12 à 230 bars, bloc EAN50 11 litres, EAN50 à 21, oxygène à 6');
   check('Bloc d\'un gaz de déco dicté avant le gaz', b.gases.find((g) => g.mix === 'EAN50').volume === 11 && b.gases[0].startPressure === 230, desc(b));
   check('« à l\'air en 15 litres »', run("30 mètres 45 minutes à l'air en 15 litres").gases[0].volume === 15);
+}
+
+console.log('\n14. Runtime max imposé par le DP');
+{
+  const c = (g, v, b = 200) => ({ ...g, volume: v, startPressure: b });
+  const input = { depth: 30, bottomTime: 45, gfLow: 85, gfHigh: 85, runtimeLimit: 45, gases: [c(parseGas('EAN32'), 24, 230), c(parseGas('EAN50', 21), 11), c(parseGas('O2', 6), 7)] };
+  check('Alerte si le runtime dépasse la limite', planDive(input).warnings.some((w) => w.code === 'RUNTIME_LIMIT'));
+  const m = maxBottomTime(input);
+  check('Temps fond max respecte la limite, pas une minute de plus', planDive({ ...input, bottomTime: m.max }).runtime <= 45 && planDive({ ...input, bottomTime: m.max + 1 }).runtime > 45, `${m.max} min, limité par ${m.limitedBy}`);
+  check('Pas d\'alerte au temps fond max', !planDive({ ...input, bottomTime: m.max }).warnings.some((w) => w.code === 'RUNTIME_LIMIT'));
+  const g = maxBottomTime({ depth: 40, bottomTime: 20, gases: [c(parseGas('Air'), 12)] });
+  check('Sans limite DP : limité par le gaz', g.limitedBy === 'gas' && !planDive({ depth: 40, bottomTime: g.max, gases: [c(parseGas('Air'), 12)] }).warnings.some((w) => w.code === 'MIN_GAS' || w.code === 'RESERVE'), `${g.max} min`);
+  const st0 = { depth: 30, bottomTime: 45, gfLow: 85, gfHigh: 85, runtimeLimit: null, gases: [{ mix: 'Air', switchDepth: null, volume: 12, startPressure: 200 }] };
+  const said = (q) => applyToolCalls(st0, parseCommand(q, st0).calls).state;
+  check('« retour bateau à 45 minutes » = limite, pas le temps fond', (() => { const x = said('retour bateau à 45 minutes'); return x.runtimeLimit === 45 && x.bottomTime === 45; })());
+  check('« runtime max 50 »', said('runtime max 50').runtimeLimit === 50);
+  check('« 30 mètres 25 minutes, sortie à 45 minutes »', (() => { const x = said('30 mètres 25 minutes, sortie à 45 minutes'); return x.bottomTime === 25 && x.runtimeLimit === 45; })());
+  check('« pas de limite »', said('pas de limite').runtimeLimit === null);
+  check('« combien de temps je peux rester au fond ? » → temps fond max', understand('combien de temps je peux rester au fond ?', st0).facts.map((f) => f.id).join() === 'max_bottom');
+  const txt = renderFacts([{ id: 'max_bottom' }], { plan: planDive(input), input });
+  check('Réponse vocale temps fond max', txt.includes(`${m.max} minutes`) && txt.includes('45 minutes'), txt);
 }
 
 console.log('\n12. Compréhension hybride');

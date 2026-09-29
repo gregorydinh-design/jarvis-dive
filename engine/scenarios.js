@@ -57,3 +57,33 @@ export function contingencyPlans(input, { extraTime = 5, extraDepth = 3 } = {}) 
   });
   return out;
 }
+
+/**
+ * Temps fond maximum (minutes entières) :
+ *  - byRuntime : pour respecter la limite de runtime du DP (si définie) ;
+ *  - byGas : sans passer sous le gaz minimum ni sous la réserve d'un bloc (si les blocs sont renseignés).
+ * max = le plus petit des deux ; limitedBy = 'runtime' | 'gas' | null.
+ */
+export function maxBottomTime(input, { upTo = 180 } = {}) {
+  const minT = Math.ceil(input.depth / (input.descentRate || DEFAULTS.descentRate));
+  let byRuntime = null;
+  let byGas = null;
+  const hasLimit = input.runtimeLimit > 0;
+  const hasCyl = input.gases.every((g) => g.volume > 0 && g.startPressure > 0);
+  if (!hasLimit && !hasCyl) return { byRuntime, byGas, max: null, limitedBy: null };
+  let runtimeOpen = hasLimit;
+  let gasOpen = hasCyl;
+  for (let t = minT; t <= upTo && (runtimeOpen || gasOpen); t++) {
+    let p;
+    try { p = planDive({ ...input, bottomTime: t }); } catch { break; }
+    if (runtimeOpen) { if (p.runtime <= input.runtimeLimit + 1e-9) byRuntime = t; else runtimeOpen = false; }
+    if (gasOpen) {
+      const gasBad = p.warnings.some((w) => w.code === 'RESERVE' || w.code === 'MIN_GAS');
+      if (!gasBad) byGas = t; else gasOpen = false;
+    }
+  }
+  const cands = [hasLimit ? byRuntime ?? 0 : null, hasCyl ? byGas ?? 0 : null].filter((x) => x !== null);
+  const max = Math.min(...cands);
+  const limitedBy = hasLimit && (byRuntime ?? 0) === max ? 'runtime' : 'gas';
+  return { byRuntime, byGas, max, limitedBy };
+}
