@@ -155,3 +155,6 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 .cmd-log li { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 13px; }
 .cmd-log li.err { border-color: var(--danger); color: var(--danger); border-radius: 8px; }
 .cmd-log li.said { border: 0; background: transparent; color: var(--muted); padding-left: 0; font-style: italic; width: 100%; }
+
+.lab-link { text-align: center; font-size: 12px; margin: 0 0 16px; }
+.lab-link a { color: var(--muted); }

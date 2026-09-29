@@ -50,6 +50,8 @@ engine/scenarios.js  Plans de secours, perte de gaz, plongées successives
 assistant/commands.js  Outils de pilotage du plan (schéma OpenAI, validation)
 assistant/parser.js    Phrases FR/EN → appels d'outils, hors ligne
 assistant/summary.js   Résumé texte / vocal du plan
+assistant/llm.js       Consignes, schéma JSON imposé et relecture des réponses LLM
+llm-test.html          Banc d'essai : petit Qwen dans Safari (WebLLM / WebGPU)
 i18n.js            Traductions FR / EN
 tests/run.js       Suite de tests (Node 18+)
 index.html, app.js, styles.css, sw.js, manifest.json   PWA

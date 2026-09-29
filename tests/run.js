@@ -235,6 +235,12 @@ console.log('\n10. Commandes vocales : analyseur + outils');
   check('« EAN50 à 21 » = gaz de déco', run('EAN50 à 21').gases[1].switchDepth === 21);
   check('Anglais', (() => { const x = run('40 meters 25 minutes on EAN27, EAN50 at 21, oxygen at 6'); return x.gases.length === 3 && x.gases[0].mix === 'EAN27'; })());
   check('Trimix', run('trimix 18/45 à 60 m 20 min, EAN50 à 21, O2 à 6').gases[0].mix === 'TX18/45');
+  const withO2 = { ...base, bottomTime: 18, gases: [...base.gases, { mix: 'O2', switchDepth: 6, volume: 7, startPressure: 200 }] };
+  check('« une vingtaine de minutes »', run('on reste une vingtaine de minutes', withO2).bottomTime === 20);
+  check('« une demi-heure »', run('35 mètres pendant une demi-heure', withO2).bottomTime === 30);
+  check('« nitrox 50 pour la déco » = déco, pas fond', (() => { const x = run('mets-moi du nitrox 50 pour la déco', withO2); return x.gases[0].mix === 'Air' && x.gases[1].mix === 'EAN50' && x.gases[1].switchDepth === 21; })());
+  check('« vire l\'oxy »', run('vire l\'oxy', withO2).gases.length === 1);
+  check('Gaz de déco triés par profondeur', run('EAN50 à 21', withO2).gases.map((g) => g.mix).join(' ') === 'Air EAN50 O2');
   // Validation : un outil hors limites est refusé et l'état n'est pas modifié
   let refused = false;
   try { applyToolCall(base, { name: 'set_dive', args: { depth: 400 } }); } catch (e) { refused = e.code === 'x_RANGE'; }

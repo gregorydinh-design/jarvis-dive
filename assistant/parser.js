@@ -20,16 +20,23 @@ function wordsToNumbers(s) {
   return s;
 }
 
+const APPROX = { dizaine: 10, quinzaine: 15, vingtaine: 20, trentaine: 30, quarantaine: 40, cinquantaine: 50, soixantaine: 60 };
+
 export function normalize(text) {
-  let s = String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let s = String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   s = s.replace(/[’']/g, ' ').replace(/[.,;:!?]/g, ' ').replace(/\s+/g, ' ').trim();
   s = s.replace(/\be\s?a\s?n\b/g, 'ean').replace(/\bian\b/g, 'ean').replace(/\bo\s?2\b/g, 'o2');
+  s = s.replace(/\b(?:une )?(dizaine|quinzaine|vingtaine|trentaine|quarantaine|cinquantaine|soixantaine)(?: de)?\b/g, (_, w) => String(APPROX[w]));
+  s = s.replace(/\b(?:une )?demi[\s-]?heure\b|\bhalf an hour\b/g, '30 minutes');
+  s = s.replace(/\b(?:une|an|one) (?:heure|hour)\b/g, '60 minutes');
   return ` ${wordsToNumbers(s)} `;
 }
 
 const GAS = String.raw`(?:(air)|(oxygene|oxygen|oxy|o2)|(?:nitrox|eanx|ean|nx)\s?(\d{2})|(?:trimix|tx|tmx)\s?(\d{1,2})\s?(?:\/|sur|over|\s)\s?(\d{1,2}))`;
 const MIN = String.raw`(?:minutes?|mins?|mn)`;
 const MET = String.raw`(?:metres?|meters?|m)`;
+
+const o2Of = (mix) => (mix === 'O2' ? 100 : mix === 'Air' ? 21 : parseInt(mix.replace(/^(EAN|TX)/, ''), 10));
 
 function gasFrom(m, offset = 1) {
   if (m[offset]) return 'Air';
@@ -51,7 +58,7 @@ export function parseCommand(text, state = null) {
   const each = (re, fn) => { for (const m of [...s.matchAll(re)]) { fn(m); blank(m[0]); } };
 
   // 1. Retrait d'un gaz
-  each(new RegExp(String.raw`\b(?:enleve|retire|supprime|sans|remove|drop|without)\s(?:le\s|la\s|l\s|de\s|d\s|the\s)?${GAS}`, 'g'),
+  each(new RegExp(String.raw`\b(?:enleve|retire|supprime|vire|jette|oublie|sans|pas de|pas d|remove|drop|without|no)\s(?:le\s|la\s|l\s|de\s|d\s|the\s)?${GAS}`, 'g'),
     (m) => calls.push({ name: 'remove_gas', args: { mix: gasFrom(m) } }));
 
   // 2. Ajustements relatifs de temps et de profondeur
@@ -89,7 +96,7 @@ export function parseCommand(text, state = null) {
       const role = (m[1] || '').trim();
       const mix = gasFrom(m, 2);
       const sw = m[7] !== undefined ? +m[7] : undefined;
-      const isO2 = mix === 'O2';
+      const isO2 = o2Of(mix) >= 40; // un mélange à 40 % d'O2 ou plus est un gaz de déco
       const toBottom = role === 'au fond' || role === 'fond' || role === 'bottom'
         || (!role && sw === undefined && !isO2 && !bottomSet && mix.toUpperCase() !== bottomName && !calls.some((c) => c.name === 'add_deco_gas'));
       if (toBottom) {
@@ -114,7 +121,6 @@ export function parseCommand(text, state = null) {
     const target = depthCall ? depthCall.args.depth : state && state.depth;
     // Un nitrox < 40 % d'O2 "à N m" qui n'est pas déjà un gaz de déco est un gaz fond (dire "déco EAN36 à 33" sinon).
     const knownDeco = (mix) => !!(state && state.gases && state.gases.slice(1).some((g) => String(g.mix).toUpperCase() === mix.toUpperCase()));
-    const o2Of = (mix) => (mix === 'O2' ? 100 : mix === 'Air' ? 21 : parseInt(mix.replace(/^(EAN|TX)/, ''), 10));
     const idx = calls.findIndex((c) => c.name === 'add_deco_gas' && c.args.switch_depth !== undefined && c.args.mix !== 'O2' && !c.explicitDeco
       && (target === undefined || target === null || c.args.switch_depth >= target || (o2Of(c.args.mix) < 40 && !knownDeco(c.args.mix))));
     if (idx >= 0) {

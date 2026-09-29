@@ -195,6 +195,9 @@ export function applyToolCall(state, call, envOptions = {}) {
     default:
       throw new CommandError('x_UNKNOWN_TOOL', { name: call.name });
   }
+  // Gaz de déco rangés du plus profond au moins profond (ordre de la remontée)
+  const [bottom, ...deco] = s.gases;
+  s.gases = [bottom, ...deco.sort((x, y) => (y.switchDepth ?? 0) - (x.switchDepth ?? 0))];
   return { state: s, changes };
 }
 
