@@ -216,30 +216,62 @@ function restore() {
 }
 
 // ---------- Rendu ----------
+const GAS_RED = '#e5484d';
+const GAS_BLUE = '#3b8eea';
+const DECO_DASH = ['', '6 4', '2 3'];
+
 function profileSvg(plan) {
-  const W = 640, H = 200, L = 34, R = 96, T = 10, B = 24; // même marge droite que le graphe de pression : temps alignés
+  const W = 640, H = 200, L = 34, R = 96, T = 12, B = 24; // même marge droite que le graphe de pression : temps alignés
   const maxT = plan.runtime, maxD = plan.input.depth;
   const x = (v) => L + (v / maxT) * (W - L - R);
   const y = (d) => T + (d / maxD) * (H - T - B);
-  const pts = [[0, 0]];
-  plan.segments.forEach((s) => { if (s.duration > 0) pts.push([s.runtime, s.to]); });
-  const path = pts.map(([a, d], i) => `${i ? 'L' : 'M'}${x(a).toFixed(1)},${y(d).toFixed(1)}`).join(' ');
+  const style = (i) => (i === 0 ? { c: GAS_RED, d: '' } : { c: GAS_BLUE, d: DECO_DASH[(i - 1) % DECO_DASH.length] });
+  // Un tracé par portion respirée sur le même gaz
+  const runs = [];
+  let t0 = 0;
+  plan.segments.forEach((sg) => {
+    if (sg.duration <= 0) return;
+    const start = sg.runtime - sg.duration;
+    const last = runs[runs.length - 1];
+    if (last && last.gi === sg.gasIndex) last.pts.push([sg.runtime, sg.to]);
+    else runs.push({ gi: sg.gasIndex, pts: [[start, sg.from], [sg.runtime, sg.to]] });
+    t0 = sg.runtime;
+  });
+  const area = [[0, 0], ...runs.flatMap((r) => r.pts)];
+  const areaPath = area.map(([a, d], i) => `${i ? 'L' : 'M'}${x(a).toFixed(1)},${y(d).toFixed(1)}`).join(' ');
+  const lines = runs.map(({ gi, pts }) => {
+    const { c, d } = style(gi);
+    const path = pts.map(([a, dd], i) => `${i ? 'L' : 'M'}${x(a).toFixed(1)},${y(dd).toFixed(1)}`).join(' ');
+    return `<path d="${path}" fill="none" stroke="${c}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"${d ? ` stroke-dasharray="${d}"` : ''}/>`;
+  }).join('');
+  const switches = plan.segments.filter((sg) => sg.kind === 'switch').map((sg) => {
+    const { c } = style(sg.gasIndex);
+    return `<circle cx="${x(sg.runtime).toFixed(1)}" cy="${y(sg.from).toFixed(1)}" r="4" fill="${c}" stroke="#0d2233" stroke-width="2"/>
+      <text x="${(x(sg.runtime) - 6).toFixed(1)}" y="${(y(sg.from) + 15).toFixed(1)}" text-anchor="end" font-size="10" fill="#c9dbe6">${esc(sg.gas)} ${sg.from} m</text>`;
+  }).join('');
   const gridD = [0, Math.round(maxD / 2), maxD];
-  const labels = plan.stops.map((s) => `<text x="${x(s.runtime - s.duration / 2).toFixed(1)}" y="${(y(s.depth) - 6).toFixed(1)}" text-anchor="middle" font-size="11" fill="#8fb0c4">${s.duration}'</text>`).join('');
-  return `<svg class="profile" viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('profileAria')}">
+  const labels = plan.stops.map((st) => `<text x="${x(st.runtime - st.duration / 2).toFixed(1)}" y="${(y(st.depth) - 6).toFixed(1)}" text-anchor="middle" font-size="11" fill="#8fb0c4">${st.duration}'</text>`).join('');
+  const used = [...new Set(runs.map((r) => r.gi))].sort((a, b) => a - b);
+  const legend = used.map((i) => {
+    const { c, d } = style(i);
+    const g = plan.gases[i];
+    return `<span class="lg"><svg width="22" height="8" aria-hidden="true"><line x1="1" x2="21" y1="4" y2="4" stroke="${c}" stroke-width="2.5"${d ? ` stroke-dasharray="${d}"` : ''}/></svg>${esc(g.name)}${i === 0 ? ` (${esc(t('roleBottom').toLowerCase())})` : ''}</span>`;
+  }).join('') + (plan.segments.some((sg) => sg.kind === 'switch') ? `<span class="lg"><svg width="12" height="12" aria-hidden="true"><circle cx="6" cy="6" r="4" fill="#c9dbe6"/></svg>${esc(t('switchLegend'))}</span>` : '');
+  return `<div class="chart-title">${esc(t('profileAria'))} · ${fmt(maxT)} min</div>
+    <div class="legend">${legend}</div>
+    <svg class="profile" viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('profileAria')}">
     ${gridD.map((d) => `<line x1="${L}" x2="${W - R}" y1="${y(d)}" y2="${y(d)}" stroke="#1f4663" stroke-width="1"/><text x="${L - 6}" y="${y(d) + 4}" text-anchor="end" font-size="11" fill="#6d8ea3">${d}</text>`).join('')}
-    <path d="${path} L${x(maxT)},${y(0)} L${x(0)},${y(0)} Z" fill="rgba(56,217,200,0.10)"/>
-    <path d="${path}" fill="none" stroke="#38d9c8" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="${areaPath} L${x(maxT)},${y(0)} Z" fill="rgba(143,176,196,0.08)"/>
+    ${lines}
+    ${switches}
     ${labels}
     <text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="11" fill="#6d8ea3">${fmt(maxT)} min</text>
+    <text x="${L - 6}" y="${H - 6}" text-anchor="end" font-size="10" fill="#6d8ea3">m</text>
   </svg>`;
 }
 
 // Pression des blocs au fil de la plongée, alignée sur le même axe de temps que le profil.
 // Gaz fond en rouge, gaz de déco en bleu (trait plein puis pointillés), réserve en pointillés gris.
-const GAS_RED = '#e5484d';
-const GAS_BLUE = '#3b8eea';
-const DECO_DASH = ['', '6 4', '2 3'];
 
 function pressureSvg(plan, reserve) {
   const tracks = plan.gases.map((g, i) => ({ g, i, pts: g.pressureTrack })).filter((x) => x.pts);

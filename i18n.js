@@ -75,6 +75,7 @@ const fr = {
   // Commandes vocales
   talkTitle: 'Parler à JARVIS',
   pressureChart: 'Pression des blocs',
+  switchLegend: 'changement de gaz',
   reserveShort: 'réserve',
   convEmpty: 'Les échanges avec JARVIS s\'affichent ici.',
   talkBtn: '🎙 Parler',
@@ -236,6 +237,7 @@ const en = {
   w_MIN_GAS: '{gas} at end of bottom: {pressure} bar < minimum gas {minGas} bar',
   talkTitle: 'Talk to JARVIS',
   pressureChart: 'Cylinder pressure',
+  switchLegend: 'gas switch',
   reserveShort: 'reserve',
   convEmpty: 'Your exchanges with JARVIS appear here.',
   talkBtn: '🎙 Talk',
