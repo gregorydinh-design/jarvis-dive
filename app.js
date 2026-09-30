@@ -315,8 +315,10 @@ function render(plan, cfg) {
       <div class="tile"><b>${fmt(plan.tts)}</b><span>${t('tts')}</span></div>
       <div class="tile"><b>${plan.decoTime}</b><span>${t('stopsMin')}</span></div>
       <div class="tile"><b>${plan.firstStop ?? '—'}</b><span>${t('firstStop')}</span></div>
-      <div class="tile"><b>${fmt(plan.cns)}%</b><span>CNS</span></div>
-      <div class="tile"><b>${fmt(plan.otu)}</b><span>OTU</span></div>
+      <div class="tile"><b>${fmt(plan.cns)}%</b><span>CNS · ${fmt(plan.otu)} OTU</span></div>
+      ${plan.minGas.bar != null
+    ? `<div class="tile ${plan.minGas.ok ? '' : 'low'}"><b>${fmt(Math.max(0, plan.minGas.pressureAtBottomEnd))}</b><span>${t('liftoff')}<br>min ${fmt(plan.minGas.bar)}</span></div>`
+    : `<div class="tile"><b>${fmt(plan.otu)}</b><span>OTU</span></div>`}
     </div>
     ${maxBottomLine(cfg)}
     ${plan.repetitive ? `<p class="meta">${esc(t('repetNote'))}</p>` : ''}

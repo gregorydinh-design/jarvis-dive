@@ -186,3 +186,6 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 .bubble.jarvis { align-self: flex-start; background: rgba(56,217,200,0.10); border: 1px solid rgba(56,217,200,0.35); }
 .bubble.err { border-color: var(--danger); background: rgba(255,107,107,0.08); }
 .bubble small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; font-style: normal; }
+
+.tile.low { border: 1px solid var(--danger); }
+.tile.low b { color: var(--danger); }
