@@ -13,7 +13,7 @@ import * as llm from './assistant/llm-engine.js';
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'jarvis-dive:v3';
 const NUM_FIELDS = ['depth', 'bottomTime', 'gfLow', 'gfHigh', 'descentRate', 'ascentRate', 'lastStop',
-  'switchStopMin', 'ppO2Bottom', 'waterDensity', 'sacBottom', 'sacDeco',
+  'switchStopMin', 'ppO2Bottom', 'ppO2Deco', 'waterDensity', 'sacBottom', 'sacDeco',
   'reservePressure', 'minGasDivers', 'minGasStressFactor', 'minGasProblemMin', 'surfaceInterval', 'runtimeLimit'];
 const CYL_BOTTOM = { vol: 12, bar: 200 };
 const CYL_DECO = { vol: 7, bar: 200 };
@@ -32,6 +32,19 @@ const fmt = (x, d = 0) => Number(x).toFixed(d);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const rows = () => [...gasList.children];
 
+const ppO2Deco = () => parseFloat($('ppO2Deco').value) || 1.6;
+const ppO2Bottom = () => parseFloat($('ppO2Bottom').value) || 1.4;
+
+// Quand la ppO2 déco change, les profondeurs de switch encore « automatiques » suivent la nouvelle MOD.
+function refreshAutoSwitchDepths() {
+  rows().forEach((row, i) => {
+    if (i === 0) return;
+    const d = row.querySelector('.gas-depth');
+    if (d.dataset.auto !== '1') return;
+    try { d.value = defaultSwitchDepth(parseGas(row.querySelector('.gas-mix').value), env(), ppO2Deco()); } catch { /* */ }
+  });
+}
+
 function env() {
   return createEnvironment({ waterDensity: parseFloat($('waterDensity').value) || 1.03 });
 }
@@ -49,7 +62,7 @@ function addGasRow({ mix, depth, auto = true, vol, bar }) {
   depthInput.dataset.auto = auto ? '1' : '0';
   mixInput.addEventListener('input', () => {
     if (depthInput.dataset.auto === '1') {
-      try { depthInput.value = defaultSwitchDepth(parseGas(mixInput.value), env()); } catch { /* saisie en cours */ }
+      try { depthInput.value = defaultSwitchDepth(parseGas(mixInput.value), env(), ppO2Deco()); } catch { /* saisie en cours */ }
     }
     refreshCylinderLabels();
     update();
@@ -108,7 +121,7 @@ function refreshCylinderLabels() {
 
 // ---------- GF ----------
 function refreshGfButton() {
-  gfBtn.textContent = `GF ${$('gfLow').value || '?'}/${$('gfHigh').value || '?'}`;
+  gfBtn.innerHTML = `GF ${esc($('gfLow').value || '?')}/${esc($('gfHigh').value || '?')}<small>ppO2 ${esc($('ppO2Bottom').value || '?')} · ${esc($('ppO2Deco').value || '?')}</small>`;
   gfBtn.setAttribute('aria-label', `${gfBtn.textContent} — ${t('gfButton')}`);
 }
 gfBtn.addEventListener('click', () => {
@@ -411,8 +424,10 @@ function render(plan, cfg) {
     ? `<table><thead><tr><th>${t('stop')}</th><th class="num">${t('duration')}</th><th class="num">Runtime</th><th>${t('gas')}</th></tr></thead><tbody>${stopRows.join('')}</tbody></table>`
     : `<p class="meta">${t('noStop', { ndl: plan.ndl, gf: cfg.gfHigh })}</p>`;
 
-  const gasTable = `<table><thead><tr><th>${t('gas')}</th><th class="num">MOD 1.4/1.6</th><th class="num">${t('consumption')}</th><th class="num">${t('left')}</th></tr></thead><tbody>${
-    plan.gases.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${fmt(mod(g, 1.4, e))}/${fmt(mod(g, 1.6, e))} m</td><td class="num">${g.liters} L</td>
+  const pb = cfg.ppO2Bottom || 1.4;
+  const pd = cfg.ppO2Deco || 1.6;
+  const gasTable = `<table><thead><tr><th>${t('gas')}</th><th class="num">MOD ${pb}/${pd}</th><th class="num">${t('consumption')}</th><th class="num">${t('left')}</th></tr></thead><tbody>${
+    plan.gases.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${fmt(mod(g, pb, e))}/${fmt(mod(g, pd, e))} m</td><td class="num">${g.liters} L</td>
       <td class="num ${isLow(g, cfg.reservePressure) ? 'low' : 'ok'}">${Number.isFinite(g.endPressure) ? barText(g.endPressure) : '—'}</td></tr>`).join('')
   }</tbody></table>`;
 
@@ -488,6 +503,8 @@ function getState() {
     gfLow: parseFloat($('gfLow').value),
     gfHigh: parseFloat($('gfHigh').value),
     runtimeLimit: parseFloat($('runtimeLimit').value) || null,
+    ppO2Bottom: ppO2Bottom(),
+    ppO2Deco: ppO2Deco(),
     gases: rows().map((row, i) => ({
       mix: row.querySelector('.gas-mix').value,
       switchDepth: i === 0 ? null : parseFloat(row.querySelector('.gas-depth').value),
@@ -503,6 +520,8 @@ function setState(st) {
   $('gfLow').value = st.gfLow;
   $('gfHigh').value = st.gfHigh;
   $('runtimeLimit').value = st.runtimeLimit || '';
+  if (st.ppO2Bottom) $('ppO2Bottom').value = st.ppO2Bottom;
+  if (st.ppO2Deco) $('ppO2Deco').value = st.ppO2Deco;
   $('gfHolder').append(gfBtn, gfPanel); // mis à l'abri avant de reconstruire les lignes
   gasList.innerHTML = '';
   st.gases.forEach((g, i) => addGasRow({
@@ -712,10 +731,11 @@ document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('cli
 }));
 $('addGas').addEventListener('click', () => {
   const mix = gasList.children.length === 1 ? 'EAN50' : 'O2';
-  addGasRow({ mix, depth: defaultSwitchDepth(parseGas(mix), env()) });
+  addGasRow({ mix, depth: defaultSwitchDepth(parseGas(mix), env(), ppO2Deco()) });
   renderCylinders();
   update();
 });
+$('ppO2Deco').addEventListener('input', refreshAutoSwitchDepths);
 for (const f of NUM_FIELDS) $(f).addEventListener('input', update);
 update();
 

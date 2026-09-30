@@ -84,6 +84,16 @@
                 <td><input id="gfHigh" type="number" inputmode="numeric" min="5" max="100" step="5" value="85"></td>
                 <td class="unit">%</td>
               </tr>
+              <tr class="sep">
+                <th scope="row"><label for="ppO2Bottom" data-i18n="ppO2Bottom">ppO2 max fond</label></th>
+                <td><input id="ppO2Bottom" type="number" inputmode="decimal" min="0.8" max="1.6" step="0.1" value="1.4"></td>
+                <td class="unit">bar</td>
+              </tr>
+              <tr>
+                <th scope="row"><label for="ppO2Deco" data-i18n="ppO2Deco">ppO2 max déco</label></th>
+                <td><input id="ppO2Deco" type="number" inputmode="decimal" min="1.0" max="1.7" step="0.1" value="1.6"></td>
+                <td class="unit">bar</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -115,7 +125,6 @@
             <select id="lastStop"><option value="3" selected>3 m</option><option value="6">6 m</option></select>
           </label>
           <label><span data-i18n="switchStop">Arrêt au switch</span> <span class="unit">min</span><input id="switchStopMin" type="number" inputmode="numeric" min="0" value="1"></label>
-          <label><span data-i18n="ppO2Bottom">ppO2 max fond</span> <span class="unit">bar</span><input id="ppO2Bottom" type="number" inputmode="decimal" step="0.1" value="1.4"></label>
           <label><span data-i18n="water">Eau</span>
             <select id="waterDensity"><option value="1.03" selected data-i18n="sea">Mer</option><option value="1.0" data-i18n="fresh">Douce</option></select>
           </label>
@@ -143,7 +152,7 @@
     Outil d'aide à la planification en cours de validation. Il ne remplace ni la formation,
     ni l'ordinateur de plongée, ni le jugement du plongeur. Vérifiez chaque plan avec un second outil.
   </footer>
-  <p class="lab-link">JARVIS DIVE v1.0.5 · <a href="llm-test.html">Banc d'essai LLM</a></p>
+  <p class="lab-link">JARVIS DIVE v1.0.6 · <a href="llm-test.html">Banc d'essai LLM</a></p>
 
   <template id="gasRow">
     <div class="gas">

@@ -255,7 +255,7 @@ console.log('\n10. Commandes vocales : analyseur + outils');
   refused = false;
   try { applyToolCall(base, { name: 'remove_gas', args: { mix: 'Air' } }); } catch (e) { refused = e.code === 'x_REMOVE_BOTTOM'; }
   check('Impossible de retirer le gaz fond', refused);
-  check('8 outils exposés au LLM', TOOLS.length === 8);
+  check('9 outils exposés au LLM', TOOLS.length === 9);
   // Le plan issu d'une commande est identique au plan saisi à la main
   const fromVoice = planDive({ ...full, gases: full.gases.map((g) => ({ ...parseGas(g.mix, g.switchDepth), volume: g.volume, startPressure: g.startPressure })) });
   const byHand = planDive({ depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [parseGas('EAN27'), parseGas('EAN47', 12), parseGas('O2', 6)] });
@@ -331,6 +331,24 @@ console.log('\n15. Courbe de pression des blocs');
   const sw = p.segments.find((s) => s.kind === 'switch' && s.gas === 'O2').runtime;
   check('O2 plein jusqu\'au switch', tr[2].filter(([t]) => t <= sw - 1e-9).every(([, b]) => b === 200));
   check('Gaz fond stable après le switch', tr[0].filter(([t]) => t >= sw).every(([, b]) => Math.abs(b - p.gases[0].endPressure) < 1e-9));
+}
+
+console.log('\n16. ppO2 fond et ppO2 déco séparées');
+{
+  const st0 = { depth: 40, bottomTime: 20, gfLow: 85, gfHigh: 85, ppO2Bottom: 1.4, ppO2Deco: 1.6, gases: [{ mix: 'Air', switchDepth: null, volume: 12, startPressure: 200 }] };
+  const said = (q, st = st0) => applyToolCalls(st, parseCommand(q, st).calls).state;
+  check('« ppO2 fond 1,3 »', said('ppO2 fond 1,3').ppO2Bottom === 1.3);
+  check('« ppO2 déco 1,5 »', said('ppO2 déco 1,5').ppO2Deco === 1.5);
+  check('« ppO2 1,2 » = fond', said('ppO2 1,2').ppO2Bottom === 1.2);
+  check('« ppO2 déco 1,5, EAN50 » : switch à la MOD 1.5 (18 m)', said('ppO2 déco 1,5, EAN50').gases[1]?.switchDepth === 18, JSON.stringify(said('ppO2 déco 1,5, EAN50').gases));
+  check('EAN50 à ppO2 1.6 : switch 21 m', said('EAN50').gases[1].switchDepth === 21);
+  let refused = false;
+  try { said('ppO2 fond 2'); } catch (e) { refused = e.code === 'x_RANGE'; }
+  check('ppO2 fond 2 bar refusée', refused);
+  const p13 = planDive({ depth: 30, bottomTime: 20, ppO2Bottom: 1.3, gases: [parseGas('EAN36')] });
+  check('Alerte fond selon la ppO2 fond réglée (EAN36 à 30 m > 1.3)', p13.warnings.some((w) => w.code === 'PPO2_BOTTOM'));
+  const p15 = planDive({ depth: 40, bottomTime: 20, ppO2Deco: 1.5, gases: [parseGas('Air'), parseGas('EAN50', 21)] });
+  check('Alerte switch selon la ppO2 déco réglée (EAN50 à 21 m > 1.5)', p15.warnings.some((w) => w.code === 'PPO2_SWITCH'));
 }
 
 console.log('\n12. Compréhension hybride');

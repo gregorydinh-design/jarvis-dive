@@ -83,6 +83,15 @@ export function parseCommand(text, state = null) {
   each(/\b(?:pas de|sans|enleve la|retire la|no|remove the) (?:limite de runtime|limite|runtime limit|limit)\b/g,
     () => calls.push({ name: 'set_runtime_limit', args: { minutes: 0 } }));
 
+  // 2c. ppO2 : « ppO2 fond 1,3 », « ppO2 déco 1,6 », « ppO2 max 1,4 » (sans précision = fond)
+  //     (la virgule décimale devient une espace à la normalisation : « 1 3 » = 1,3)
+  each(/\b(?:ppo2|p p o 2|pression partielle(?: d oxygene)?)(?:\s(?:max(?:imum|i)?|maximale))?(?:\s(?:au |du |de |en |pour le |pour la |sur le )?(fond|bottom|deco|decompression|paliers?))?(?:\s(?:max(?:imum|i)?|a|de|at|of))?\s(\d)(?:\s(\d{1,2}))?\b/g,
+    (m) => {
+      const v = m[3] ? +`${m[2]}.${m[3]}` : +m[2];
+      const deco = m[1] && /deco|palier/.test(m[1]);
+      calls.push({ name: 'set_ppo2', args: deco ? { deco: v } : { bottom: v } });
+    });
+
   // 3. Gradient factors : "gf 30 85", "gf 30/85", "gf 30 sur 85", "gf 85"
   each(/\b(?:gf|gradient factors?|g f)\s(\d{1,3})(?:\s?(?:\/|sur|over|\s)\s?(\d{1,3}))?\b/g,
     (m) => calls.push({ name: 'set_gf', args: { low: +m[1], high: +(m[2] ?? m[1]) } }));
@@ -154,7 +163,7 @@ export function parseCommand(text, state = null) {
   }
 
   // Un bloc se règle après la création de son gaz ; un bloc « bottom » vise le gaz fond final.
-  const ORDER = { set_bottom_gas: 0, remove_gas: 1, add_deco_gas: 1, set_dive: 2, set_gf: 2, set_runtime_limit: 2, set_cylinder: 3, get_plan: 4 };
+  const ORDER = { set_bottom_gas: 0, remove_gas: 1, add_deco_gas: 1, set_dive: 2, set_gf: 2, set_runtime_limit: 2, set_ppo2: -1, set_cylinder: 3, get_plan: 4 };
   const bottomMix = calls.find((c) => c.name === 'set_bottom_gas')?.args.mix;
   for (const c of calls) if (c.name === 'set_cylinder' && c.pending && bottomMix && c.args.gas === bottomMix) c.args.gas = 'bottom';
   const sorted = calls.map((c, i) => ({ c, i })).sort((x, y) => (ORDER[x.c.name] - ORDER[y.c.name]) || (x.i - y.i)).map((x) => x.c);

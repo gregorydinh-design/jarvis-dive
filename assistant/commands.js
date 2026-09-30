@@ -21,6 +21,8 @@ const LIMITS = {
   pressure: [20, 300],
   switchDepth: [0, 150],
   runtimeLimit: [5, 600],
+  ppO2Bottom: [0.8, 1.6],
+  ppO2Deco: [1.0, 1.7],
 };
 
 const CYL_BOTTOM = { volume: 12, startPressure: 200 };
@@ -111,6 +113,14 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'set_ppo2',
+      description: 'ppO2 maximale en bar : bottom = gaz fond (souvent 1.2 à 1.4), deco = gaz de déco (souvent 1.6).',
+      parameters: { type: 'object', properties: { bottom: { type: 'number' }, deco: { type: 'number' } } },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_plan',
       description: 'Renvoie le plan calculé par JARVIS (paliers, DTR, gaz restants, alertes). Ne jamais calculer soi-même.',
       parameters: { type: 'object', properties: {} },
@@ -169,7 +179,7 @@ export function applyToolCall(state, call, envOptions = {}) {
     case 'add_deco_gas': {
       const gas = parseGas(a.mix);
       const sw = num(a.switch_depth);
-      const depth = sw !== undefined ? inRange('switchDepth', sw) : defaultSwitchDepth(gas, env);
+      const depth = sw !== undefined ? inRange('switchDepth', sw) : defaultSwitchDepth(gas, env, s.ppO2Deco || 1.6);
       const idx = findGasIndex(s, gas.name);
       if (idx === 0) throw new CommandError('x_SAME_AS_BOTTOM', { gas: gas.name });
       if (idx > 0) {
@@ -203,6 +213,15 @@ export function applyToolCall(state, call, envOptions = {}) {
       const m = num(a.minutes);
       s.runtimeLimit = m ? inRange('runtimeLimit', m) : null;
       changes.push({ code: s.runtimeLimit ? 'c_RUNTIME' : 'c_RUNTIME_OFF', params: { value: s.runtimeLimit } });
+      break;
+    }
+    case 'set_ppo2': {
+      const pb = num(a.bottom);
+      const pd = num(a.deco);
+      if (pb !== undefined) s.ppO2Bottom = inRange('ppO2Bottom', pb);
+      if (pd !== undefined) s.ppO2Deco = inRange('ppO2Deco', pd);
+      if (pb !== undefined) changes.push({ code: 'c_PPO2_BOTTOM', params: { value: s.ppO2Bottom } });
+      if (pd !== undefined) changes.push({ code: 'c_PPO2_DECO', params: { value: s.ppO2Deco } });
       break;
     }
     case 'get_plan':

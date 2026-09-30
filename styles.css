@@ -198,3 +198,7 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 .profile { touch-action: pan-y; }
 .xhair { stroke: #c9dbe6; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
 .chart-tip { position: sticky; top: 6px; z-index: 2; margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.gf-table tr.sep th, .gf-table tr.sep td { border-top: 1px solid var(--line); padding-top: 8px; }
+.gf-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.gf-btn small { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }

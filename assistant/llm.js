@@ -31,6 +31,8 @@ export const CALLS_SCHEMA = JSON.stringify({
               volume: { type: 'number' },
               pressure: { type: 'number' },
               minutes: { type: 'number' },
+              bottom: { type: 'number' },
+              deco: { type: 'number' },
             },
           },
         },
@@ -143,6 +145,7 @@ calls = modifications du plan :
 - set_bottom_gas {mix} ; add_deco_gas {mix, switch_depth} ; remove_gas {mix}
 - set_cylinder {gas, volume, pressure} ("bottom" = bloc fond ; bi 12 = 24)
 - set_runtime_limit {minutes} : heure de sortie imposée par le DP (retour bateau), 0 = aucune
+- set_ppo2 {bottom, deco} : ppO2 maximale en bar (fond souvent 1.2 à 1.4, déco souvent 1.6)
 
 facts = informations à annoncer :
 - summary : résumé du plan ; stops : tous les paliers ; first_stop ; longest_stop
