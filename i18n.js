@@ -75,6 +75,8 @@ const fr = {
   w_MIN_GAS: '{gas} en fin de fond : {pressure} bar < gaz minimum {minGas} bar',
   // Commandes vocales
   talkTitle: 'Parler à JARVIS',
+  themeLight: 'Passer au thème clair (Saint-Malo)',
+  themeDark: 'Passer au thème sombre (récif)',
   pressureChart: 'Pression des blocs',
   switchLegend: 'changement de gaz',
   reserveShort: 'réserve',
@@ -242,6 +244,8 @@ const en = {
   w_RESERVE: '{gas}: {pressure} bar left < {reserve} bar',
   w_MIN_GAS: '{gas} at end of bottom: {pressure} bar < minimum gas {minGas} bar',
   talkTitle: 'Talk to JARVIS',
+  themeLight: 'Switch to light theme (Saint-Malo)',
+  themeDark: 'Switch to dark theme (reef)',
   pressureChart: 'Cylinder pressure',
   switchLegend: 'gas switch',
   reserveShort: 'reserve',

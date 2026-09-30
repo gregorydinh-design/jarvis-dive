@@ -139,6 +139,7 @@ function applyLang() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder)));
   refreshVoiceButton();
   if (typeof refreshTalkButton === 'function') { refreshTalkButton(); refreshLlmPanel(); }
+  applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
   document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
   refreshRoles();
   renderCylinders();
@@ -718,6 +719,30 @@ $('llmLoad').addEventListener('click', async () => {
     btn.disabled = !llm.isAvailable();
   }
 });
+
+// ---------- Thème clair « Saint-Malo » / sombre « récif » ----------
+const THEME_KEY = 'jarvis-dive:theme';
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = $('themeBtn');
+  btn.textContent = theme === 'light' ? '🌙' : '☀️';
+  btn.setAttribute('aria-label', theme === 'light' ? t('themeDark') : t('themeLight'));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#dff5ef' : '#07141f');
+}
+$('themeBtn').addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem(THEME_KEY, next); } catch { /* sans conséquence */ }
+  applyTheme(next);
+});
+// Sans choix manuel, l'app suit le réglage clair/sombre de l'iPhone.
+if (window.matchMedia) {
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* */ }
+    if (!saved) applyTheme(e.matches ? 'light' : 'dark');
+  });
+}
 
 // ---------- Démarrage ----------
 restore();

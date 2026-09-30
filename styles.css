@@ -202,3 +202,97 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 .gf-table tr.sep th, .gf-table tr.sep td { border-top: 1px solid var(--line); padding-top: 8px; }
 .gf-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
 .gf-btn small { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+
+/* =========================================================================
+   Thèmes visuels : sombre « récif » (défaut) et clair « Saint-Malo »
+   Le décor est une image fixe ; les cartes sont en verre dépoli par-dessus.
+   ========================================================================= */
+html { background: #0a3558; }
+body { background: transparent; }
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: #0a3558 url('img/bg-dark.webp') center top / cover no-repeat;
+}
+.card {
+  background: rgba(4, 28, 46, 0.72);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  border-color: rgba(120, 205, 235, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 10, 20, 0.35);
+}
+.tile { background: rgba(10, 44, 68, 0.65); }
+.top { position: relative; }
+.top::before {
+  content: ''; position: absolute; left: -16px; right: -16px; top: calc(-1 * env(safe-area-inset-top)); bottom: -14px; z-index: -1;
+  background: linear-gradient(to bottom, rgba(2, 26, 44, 0.72), rgba(2, 26, 44, 0.35) 70%, rgba(2, 26, 44, 0));
+}
+h1 { text-shadow: 0 2px 12px rgba(0, 30, 50, 0.7); }
+h1 span { color: #5ff0dc; }
+.sub { color: #d6f3fb; }
+.lang { background: rgba(2, 26, 44, 0.55); }
+.lang button[aria-pressed="false"] { color: #d6f3fb; }
+footer, .lab-link a { color: #9ccadb; }
+.theme-btn { background: rgba(2, 26, 44, 0.55); border: 1px solid var(--line); color: #d6f3fb; border-radius: 10px; min-width: 44px; min-height: 36px; font-size: 18px; padding: 0; }
+
+/* ---------- Thème clair « Saint-Malo » ---------- */
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e9f8f4;
+  --panel: rgba(255, 255, 255, 0.80);
+  --panel-2: rgba(240, 250, 247, 0.92);
+  --line: rgba(20, 80, 80, 0.16);
+  --text: #0f2d33;
+  --muted: #4b6b70;
+  --accent: #0b8a7e;
+  --accent-ink: #ffffff;
+  --warn: #b7791f;
+  --danger: #c62f3a;
+  --info: #2b6cb0;
+  background: #cfeee6;
+}
+html[data-theme="light"] body::before { background: #cfeee6 url('img/bg-light.webp') center top / cover no-repeat; }
+html[data-theme="light"] body { color: var(--text); }
+html[data-theme="light"] .card {
+  background: rgba(255, 255, 255, 0.80);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  border-color: rgba(255, 255, 255, 0.7); box-shadow: 0 8px 24px rgba(20, 80, 80, 0.14);
+}
+html[data-theme="light"] .top::before { background: linear-gradient(to bottom, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)); }
+html[data-theme="light"] h1 { color: #0f2d33; text-shadow: none; }
+html[data-theme="light"] h1 span { color: #0b8a7e; }
+html[data-theme="light"] .sub { color: #2f5357; }
+html[data-theme="light"] .unit,
+html[data-theme="light"] footer,
+html[data-theme="light"] .meta,
+html[data-theme="light"] th,
+html[data-theme="light"] .chart-title,
+html[data-theme="light"] .gas-role,
+html[data-theme="light"] .lab-link a { color: var(--muted); }
+html[data-theme="light"] input,
+html[data-theme="light"] select { background: #ffffff; color: var(--text); border-color: rgba(20, 80, 80, 0.2); }
+html[data-theme="light"] .tile { background: rgba(255, 255, 255, 0.75); }
+html[data-theme="light"] .tile span { color: var(--muted); }
+html[data-theme="light"] .warnings li { background: rgba(255, 255, 255, 0.7); }
+html[data-theme="light"] td { border-bottom-color: rgba(20, 80, 80, 0.1); }
+html[data-theme="light"] .bubble.me { background: #eaf6f3; }
+html[data-theme="light"] .bubble.jarvis { background: rgba(11, 138, 126, 0.08); border-color: rgba(11, 138, 126, 0.35); }
+html[data-theme="light"] .conv-log { background: rgba(255, 255, 255, 0.55); }
+html[data-theme="light"] .lang,
+html[data-theme="light"] .theme-btn { background: rgba(255, 255, 255, 0.7); color: #2f5357; }
+html[data-theme="light"] .lang button[aria-pressed="false"] { color: #2f5357; }
+html[data-theme="light"] .gas-left { color: #0b8a7e; }
+html[data-theme="light"] .gas-left.low { color: var(--danger); }
+html[data-theme="light"] .gf-panel,
+html[data-theme="light"] .llm-panel,
+html[data-theme="light"] .prev-box { background: rgba(255, 255, 255, 0.9); }
+html[data-theme="light"] .legend,
+html[data-theme="light"] .legend .lg { color: #0f2d33; }
+html[data-theme="light"] .chart-tip { background: rgba(255, 255, 255, 0.95); }
+html[data-theme="light"] .xhair { stroke: #0f2d33; }
+/* Graphes : couleurs d'axes et d'étiquettes (les tracés rouge/bleu ne changent pas) */
+html[data-theme="light"] svg.profile line[stroke="#1f4663"] { stroke: rgba(20, 80, 80, 0.15); }
+html[data-theme="light"] svg.profile text[fill="#6d8ea3"],
+html[data-theme="light"] svg.profile text[fill="#8fb0c4"] { fill: #4b6b70; }
+html[data-theme="light"] svg.profile text[fill="#c9dbe6"] { fill: #0f2d33; }
+html[data-theme="light"] svg.profile path[fill^="rgba(143"] { fill: rgba(11, 138, 126, 0.07); }
+html[data-theme="light"] svg.profile circle[stroke="#0d2233"] { stroke: #ffffff; }

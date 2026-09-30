@@ -12,6 +12,15 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Thème appliqué avant l'affichage (pas de flash) : choix mémorisé, sinon réglage de l'iPhone.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('jarvis-dive:theme'); } catch (e) { /* */ }
+      if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>
 <body>
   <header class="top">
@@ -21,6 +30,7 @@
     </div>
     <div class="top-right">
       <span id="offline" class="pill" data-i18n="offline" hidden>Hors ligne</span>
+      <button id="themeBtn" class="theme-btn" type="button" aria-label="Thème clair / sombre">☀️</button>
       <div class="lang" role="group" aria-label="Langue / Language">
         <button type="button" data-lang="fr" aria-pressed="true">FR</button>
         <button type="button" data-lang="en" aria-pressed="false">EN</button>
@@ -152,7 +162,7 @@
     Outil d'aide à la planification en cours de validation. Il ne remplace ni la formation,
     ni l'ordinateur de plongée, ni le jugement du plongeur. Vérifiez chaque plan avec un second outil.
   </footer>
-  <p class="lab-link">JARVIS DIVE v1.0.6 · <a href="llm-test.html">Banc d'essai LLM</a></p>
+  <p class="lab-link">JARVIS DIVE v1.1.0 · <a href="llm-test.html">Banc d'essai LLM</a></p>
 
   <template id="gasRow">
     <div class="gas">

@@ -11,6 +11,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 - **Plongée successive** : la plongée en cours devient la n°1 ; tissus, CNS (demi-vie 90 min) et OTU sont reportés après l'intervalle de surface.
 - **Parler à JARVIS** : bouton 🎙 (reconnaissance vocale de Safari) ou micro du clavier. Commandes (« 40 mètres 25 minutes EAN27, EAN47 à 12, oxygène à 6 », « rajoute 5 minutes », « bloc fond bi 12 ») et questions (« mon gaz fond tient ? », « et si je perds l'oxy ? », « et avec 10 minutes de plus ? »). Réponses lues à voix haute, **chiffres toujours calculés par le moteur**. Lien `?cmd=` pour Raccourcis / Siri.
 - **LLM optionnel** (🧠) : petit Qwen dans Safari (WebGPU), utilisé seulement quand l'analyseur intégré ne comprend pas la phrase. Il choisit quoi faire et quoi annoncer, il n'écrit jamais de chiffre. Téléchargé une fois (0,9 à 1,6 Go), puis disponible hors ligne.
+- **Thèmes** : sombre « récif » (banc de requins-marteaux au loin, récif corallien) et clair « Saint-Malo » (eaux émeraude, laminaires, granit rose, épave, phoque et bars au loin) ; bouton ☀️/🌙, suit le réglage de l'iPhone tant qu'aucun choix n'est fait.
 - **Langues** : français / anglais (bouton FR | EN, langue du téléphone par défaut).
 - **Hors ligne** : service worker, installable depuis Safari (Partager → Sur l'écran d'accueil).
 
@@ -70,6 +71,7 @@ llm-test.html          Banc d'essai : petit Qwen dans Safari (WebLLM / WebGPU)
 i18n.js            Traductions FR / EN
 tests/run.js       Suite de tests (Node 18+)
 index.html, app.js, styles.css, sw.js, manifest.json   PWA
+img/bg-dark.webp, img/bg-light.webp   Décors des deux thèmes
 ```
 
 ## Roadmap
