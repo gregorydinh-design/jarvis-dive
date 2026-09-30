@@ -171,8 +171,17 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 .llm-row button { padding: 0 16px; }
 .bar { height: 6px; background: var(--panel); border-radius: 99px; overflow: hidden; margin-top: 8px; }
 .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
-.conv-log { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
-.bubble { padding: 8px 12px; border-radius: 14px; font-size: 15px; max-width: 92%; line-height: 1.35; }
+.conv-log {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 10px;
+  height: 180px; max-height: 30vh; overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; padding: 8px 6px 8px 8px;
+  background: rgba(0,0,0,0.18); border: 1px solid var(--line); border-radius: 12px;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.conv-empty { margin: auto; color: var(--muted); font-size: 13px; text-align: center; }
+.conv-log::-webkit-scrollbar { width: 6px; }
+.conv-log::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.bubble { padding: 8px 12px; border-radius: 14px; font-size: 15px; max-width: 92%; line-height: 1.35; flex-shrink: 0; }
 .bubble.me { align-self: flex-end; background: var(--panel-2); font-style: italic; }
 .bubble.jarvis { align-self: flex-start; background: rgba(56,217,200,0.10); border: 1px solid rgba(56,217,200,0.35); }
 .bubble.err { border-color: var(--danger); background: rgba(255,107,107,0.08); }

@@ -394,12 +394,43 @@ function refreshVoiceButton() {
   b.textContent = voiceOn ? '🔊' : '🔇';
 }
 
-function speak(text) {
-  if (!voiceOn || !('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+// Synthèse vocale. Sur iPhone, Safari ne parle que si la voix a été « déverrouillée » par un appui :
+// on prononce un texte vide au premier toucher, ensuite les réponses (qui arrivent après un calcul) passent.
+let speechUnlocked = false;
+let currentUtterance = null; // référence gardée : sinon Safari peut interrompre la lecture
+function unlockSpeech() {
+  if (speechUnlocked || !('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(' ');
+  u.volume = 0;
   window.speechSynthesis.speak(u);
+  speechUnlocked = true;
+}
+['touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unlockSpeech, { capture: true, passive: true }));
+
+function pickVoice(code) {
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find((v) => v.lang === code && v.localService) || voices.find((v) => v.lang === code)
+    || voices.find((v) => v.lang && v.lang.startsWith(code.slice(0, 2))) || null;
+}
+
+function speak(text) {
+  if (!voiceOn || !('speechSynthesis' in window) || !text) return;
+  const synth = window.speechSynthesis;
+  const go = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+    const v = pickVoice(u.lang);
+    if (v) u.voice = v;
+    u.rate = 1;
+    currentUtterance = u;
+    synth.speak(u);
+  };
+  if (synth.speaking || synth.pending) {
+    synth.cancel();
+    setTimeout(go, 80); // iOS : un speak() juste après cancel() est parfois ignoré
+  } else {
+    go();
+  }
 }
 
 // ---------- Parler à JARVIS ----------
@@ -408,8 +439,10 @@ let convHistory = [];
 
 function bubble(cls, text, meta = '') {
   const log = $('convLog');
-  log.insertAdjacentHTML('afterbegin', `<div class="bubble ${cls}">${esc(text)}${meta ? `<small>${esc(meta)}</small>` : ''}</div>`);
-  while (log.children.length > 8) log.lastElementChild.remove();
+  log.querySelector('.conv-empty')?.remove();
+  log.insertAdjacentHTML('beforeend', `<div class="bubble ${cls}">${esc(text)}${meta ? `<small>${esc(meta)}</small>` : ''}</div>`);
+  while (log.children.length > 40) log.firstElementChild.remove();
+  log.scrollTop = log.scrollHeight; // dernier échange visible, sans pousser la page
 }
 
 async function converse(text, { voice = true } = {}) {

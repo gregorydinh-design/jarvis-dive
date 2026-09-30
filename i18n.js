@@ -73,6 +73,7 @@ const fr = {
   w_MIN_GAS: '{gas} en fin de fond : {pressure} bar < gaz minimum {minGas} bar',
   // Commandes vocales
   talkTitle: 'Parler à JARVIS',
+  convEmpty: 'Les échanges avec JARVIS s\'affichent ici.',
   talkBtn: '🎙 Parler',
   talkListening: '● J\'écoute… (touchez pour arrêter)',
   talkUnavailable: '🎙 Utilisez le micro du clavier ci-dessous',
@@ -230,6 +231,7 @@ const en = {
   w_RESERVE: '{gas}: {pressure} bar left < {reserve} bar',
   w_MIN_GAS: '{gas} at end of bottom: {pressure} bar < minimum gas {minGas} bar',
   talkTitle: 'Talk to JARVIS',
+  convEmpty: 'Your exchanges with JARVIS appear here.',
   talkBtn: '🎙 Talk',
   talkListening: '● Listening… (tap to stop)',
   talkUnavailable: '🎙 Use the keyboard microphone below',
