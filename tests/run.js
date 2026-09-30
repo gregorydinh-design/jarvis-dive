@@ -319,6 +319,20 @@ console.log('\n14. Runtime max imposé par le DP');
   check('Réponse vocale temps fond max', txt.includes(`${m.max} minutes`) && txt.includes('45 minutes'), txt);
 }
 
+console.log('\n15. Courbe de pression des blocs');
+{
+  const c = (g, v) => ({ ...g, volume: v, startPressure: 200 });
+  const p = planDive({ depth: 40, bottomTime: 25, gases: [c(parseGas('EAN27'), 24), c(parseGas('EAN47', 12), 7), c(parseGas('O2', 6), 7)] });
+  const tr = p.gases.map((g) => g.pressureTrack);
+  check('Chaque bloc a sa courbe', tr.every((x) => x && x.length >= 2));
+  check('Départ à la pression de gonflage', tr.every((x) => x[0][0] === 0 && x[0][1] === 200));
+  check('Arrivée = pression restante affichée', p.gases.every((g) => Math.abs(g.pressureTrack.at(-1)[1] - g.endPressure) < 1e-9));
+  check('Courbe jamais croissante', tr.every((x) => x.every((pt, k) => k === 0 || pt[1] <= x[k - 1][1] + 1e-9)));
+  const sw = p.segments.find((s) => s.kind === 'switch' && s.gas === 'O2').runtime;
+  check('O2 plein jusqu\'au switch', tr[2].filter(([t]) => t <= sw - 1e-9).every(([, b]) => b === 200));
+  check('Gaz fond stable après le switch', tr[0].filter(([t]) => t >= sw).every(([, b]) => Math.abs(b - p.gases[0].endPressure) < 1e-9));
+}
+
 console.log('\n12. Compréhension hybride');
 {
   const st = { depth: 40, bottomTime: 25, gfLow: 85, gfHigh: 85, gases: [{ mix: 'EAN27' }, { mix: 'O2', switchDepth: 6 }] };

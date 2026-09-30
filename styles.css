@@ -189,3 +189,12 @@ tr.sc-danger td:first-child::before { content: '⚠ '; color: var(--danger); }
 
 .tile.low { border: 1px solid var(--danger); }
 .tile.low b { color: var(--danger); }
+
+/* Graphes profil + pression */
+.chart-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: #c9dbe6; margin-bottom: 2px; }
+.legend .lg { display: inline-flex; align-items: center; gap: 5px; }
+.profile.pressure { margin-top: 2px; }
+.profile { touch-action: pan-y; }
+.xhair { stroke: #c9dbe6; stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.chart-tip { position: sticky; top: 6px; z-index: 2; margin-top: 10px; padding: 6px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-size: 13px; font-variant-numeric: tabular-nums; }

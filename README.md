@@ -20,7 +20,7 @@ PWA de planification de plongée technique, hors ligne, pour iPhone.
 
 1. **Installer** : ouvrir https://gregorydinh-design.github.io/jarvis-dive/ dans Safari → Partager → « Sur l'écran d'accueil ». Lancer une fois avec du réseau : l'app fonctionne ensuite hors ligne.
 2. **Planifier** : profondeur, temps fond (descente incluse), gaz fond, gaz de déco avec leur profondeur de switch ; GF via le bouton à droite du gaz fond ; blocs, réserves et vitesses dans « Réglages avancés ».
-3. **Lire le plan** : runtime, DTR, paliers, gaz restant par bloc (rouge sous la réserve), gaz minimum, plans de secours (+5 min, +3 m, perte de chaque gaz de déco).
+3. **Lire le plan** : runtime, DTR, profil de plongée et, juste dessous, la pression de chaque bloc au fil du temps (gaz fond en rouge, gaz de déco en bleu, réserve en pointillés ; toucher un graphe affiche l'instant, la profondeur et les pressions), paliers, gaz restant par bloc (rouge sous la réserve), gaz minimum, plans de secours (+5 min, +3 m, perte de chaque gaz de déco).
 4. **Parler** : bouton 🎙 ou micro du clavier dans le champ ; « Lire » répète le plan ; 🔊 coupe la voix.
 5. **Plongée successive** : « + Plongée successive » fige la plongée affichée comme n°1, puis on règle la n°2 et l'intervalle de surface (2 plongées maximum en V1).
 6. **Avant la mer** : lancer l'app une ou deux fois à terre pour récupérer la dernière version ; si le LLM est utilisé, le charger une fois en Wi-Fi.

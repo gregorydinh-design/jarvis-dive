@@ -70,6 +70,7 @@ export function planDive(input) {
   const segments = [];
   const tissues = cfg.initialTissues ? new Tissues(env, cfg.initialTissues) : new Tissues(env);
   const gasUse = gases.map(() => 0);
+  const gasTrack = gases.map(() => [[0, 0]]); // [runtime, litres consommés]
   let runtime = 0;
   let cns = cfg.initialCns || 0;
   let otu = cfg.initialOtu || 0;
@@ -84,7 +85,10 @@ export function planDive(input) {
     otu += ox.otu;
     maxPpO2 = Math.max(maxPpO2, ppO2(gas, from, env), ppO2(gas, to, env));
     const sac = kind === 'descent' || kind === 'bottom' ? cfg.sacBottom : cfg.sacDeco;
+    const usedBefore = gasUse[gi];
     gasUse[gi] += sac * env.pressure((from + to) / 2) * minutes;
+    // Courbe de consommation : points au début et à la fin de chaque segment respiré sur ce gaz
+    gasTrack[gi].push([runtime, usedBefore], [runtime + minutes, gasUse[gi]]);
     runtime += minutes;
     const last = segments[segments.length - 1];
     if (last && last.kind === kind && kind === 'stop' && last.from === from && last.gasIndex === gi) {
@@ -250,6 +254,8 @@ export function planDive(input) {
     const out = { ...g, liters: Math.round(gasUse[i]) };
     if (g.volume > 0 && g.startPressure > 0) {
       out.endPressure = g.startPressure - gasUse[i] / g.volume;
+      // Pression du bloc au fil de la plongée : [runtime (min), pression (bar)]
+      out.pressureTrack = [...gasTrack[i], [runtime, gasUse[i]]].map(([tt, used]) => [tt, g.startPressure - used / g.volume]);
       if (out.endPressure < cfg.reservePressure) {
         warnings.push({ level: 'danger', code: 'RESERVE',
           params: { gas: g.name, pressure: Math.max(0, out.endPressure), reserve: cfg.reservePressure },

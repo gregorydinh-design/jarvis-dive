@@ -1,6 +1,6 @@
 // JARVIS DIVE — Service worker : tout le planificateur fonctionne hors ligne.
 // Incrémenter VERSION à chaque déploiement pour forcer la mise à jour du cache.
-const VERSION = 'jarvis-dive-v1.0.3';
+const VERSION = 'jarvis-dive-v1.0.4';
 const LIB_CACHE = 'jarvis-dive-libs'; // bibliothèques externes versionnées (WebLLM) : conservées entre les mises à jour
 const LIB_HOSTS = ['esm.run', 'cdn.jsdelivr.net'];
 const ASSETS = [

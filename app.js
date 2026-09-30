@@ -217,7 +217,7 @@ function restore() {
 
 // ---------- Rendu ----------
 function profileSvg(plan) {
-  const W = 640, H = 220, L = 34, R = 10, T = 10, B = 24;
+  const W = 640, H = 200, L = 34, R = 96, T = 10, B = 24; // même marge droite que le graphe de pression : temps alignés
   const maxT = plan.runtime, maxD = plan.input.depth;
   const x = (v) => L + (v / maxT) * (W - L - R);
   const y = (d) => T + (d / maxD) * (H - T - B);
@@ -233,6 +233,94 @@ function profileSvg(plan) {
     ${labels}
     <text x="${W - R}" y="${H - 6}" text-anchor="end" font-size="11" fill="#6d8ea3">${fmt(maxT)} min</text>
   </svg>`;
+}
+
+// Pression des blocs au fil de la plongée, alignée sur le même axe de temps que le profil.
+// Gaz fond en rouge, gaz de déco en bleu (trait plein puis pointillés), réserve en pointillés gris.
+const GAS_RED = '#e5484d';
+const GAS_BLUE = '#3b8eea';
+const DECO_DASH = ['', '6 4', '2 3'];
+
+function pressureSvg(plan, reserve) {
+  const tracks = plan.gases.map((g, i) => ({ g, i, pts: g.pressureTrack })).filter((x) => x.pts);
+  if (!tracks.length) return '';
+  const W = 640, H = 170, L = 34, R = 96, T = 10, B = 22;
+  const maxT = plan.runtime;
+  const maxP = Math.max(...tracks.map((x) => x.pts[0][1]));
+  const x = (v) => L + (v / maxT) * (W - L - R);
+  const y = (p) => T + (1 - Math.max(0, p) / maxP) * (H - T - B);
+  const style = (i) => (i === 0 ? { c: GAS_RED, d: '' } : { c: GAS_BLUE, d: DECO_DASH[(i - 1) % DECO_DASH.length] });
+  const grid = [0, Math.round(maxP / 2), maxP];
+  // Étiquettes directes en bout de courbe, écartées si elles se chevauchent
+  const ends = tracks.map((tr) => ({ ...tr, yEnd: y(tr.pts.at(-1)[1]) })).sort((a, b) => a.yEnd - b.yEnd);
+  for (let k = 1; k < ends.length; k++) if (ends[k].yEnd - ends[k - 1].yEnd < 14) ends[k].yEnd = ends[k - 1].yEnd + 14;
+  const lines = tracks.map(({ i, pts }) => {
+    const { c, d } = style(i);
+    const path = pts.map(([tt, p], k) => `${k ? 'L' : 'M'}${x(tt).toFixed(1)},${y(p).toFixed(1)}`).join(' ');
+    return `<path d="${path}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${d ? ` stroke-dasharray="${d}"` : ''}/>`;
+  }).join('');
+  const labels = ends.map(({ g, i, pts, yEnd }) => {
+    const p = pts.at(-1)[1];
+    const low = p < reserve;
+    return `<circle cx="${x(maxT).toFixed(1)}" cy="${y(p).toFixed(1)}" r="3" fill="${style(i).c}"/>
+      <text x="${(x(maxT) + 8).toFixed(1)}" y="${(yEnd + 4).toFixed(1)}" font-size="11" fill="${low ? 'var(--danger)' : '#c9dbe6'}">${esc(g.name)} ${fmt(Math.max(0, p))}</text>`;
+  }).join('');
+  const legend = tracks.map(({ g, i }) => {
+    const { c, d } = style(i);
+    return `<span class="lg"><svg width="22" height="8" aria-hidden="true"><line x1="1" x2="21" y1="4" y2="4" stroke="${c}" stroke-width="2"${d ? ` stroke-dasharray="${d}"` : ''}/></svg>${esc(g.name)}${i === 0 ? ` (${esc(t('roleBottom').toLowerCase())})` : ''}</span>`;
+  }).join('') + `<span class="lg"><svg width="22" height="8" aria-hidden="true"><line x1="1" x2="21" y1="4" y2="4" stroke="#6d8ea3" stroke-width="1.5" stroke-dasharray="2 3"/></svg>${esc(t('reserveShort'))} ${reserve}</span>`;
+  return `<div class="chart-title">${esc(t('pressureChart'))}</div>
+    <div class="legend">${legend}</div>
+    <svg class="profile pressure" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('pressureChart'))}">
+      ${grid.map((p) => `<line x1="${L}" x2="${W - R}" y1="${y(p)}" y2="${y(p)}" stroke="#1f4663" stroke-width="1"/><text x="${L - 6}" y="${y(p) + 4}" text-anchor="end" font-size="11" fill="#6d8ea3">${p}</text>`).join('')}
+      ${reserve > 0 && reserve < maxP ? `<line x1="${L}" x2="${W - R}" y1="${y(reserve)}" y2="${y(reserve)}" stroke="#6d8ea3" stroke-width="1.5" stroke-dasharray="2 3"/>` : ''}
+      ${lines}
+      ${labels}
+      <text x="${W - R}" y="${H - 5}" text-anchor="end" font-size="11" fill="#6d8ea3">${fmt(maxT)} min</text>
+      <text x="${L - 6}" y="${H - 5}" text-anchor="end" font-size="10" fill="#6d8ea3">bar</text>
+    </svg>`;
+}
+
+// Réticule commun aux deux graphes : toucher ou survoler affiche l'instant, la profondeur et la pression de chaque bloc.
+function pointAt(pts, tt) {
+  for (let k = 1; k < pts.length; k++) {
+    const [t0, v0] = pts[k - 1];
+    const [t1, v1] = pts[k];
+    if (tt <= t1 + 1e-9) return t1 === t0 ? v1 : v0 + ((tt - t0) / (t1 - t0)) * (v1 - v0);
+  }
+  return pts.at(-1)[1];
+}
+
+function attachCrosshair(plan) {
+  const svgs = [...document.querySelectorAll('#result svg.profile')];
+  const tip = document.getElementById('chartTip');
+  if (!svgs.length || !tip) return;
+  const depthPts = [[0, 0], ...plan.segments.filter((s) => s.duration > 0).map((s) => [s.runtime, s.to])];
+  const tracks = plan.gases.filter((g) => g.pressureTrack);
+  const show = (ev) => {
+    const svg = ev.currentTarget;
+    const vb = svg.viewBox.baseVal;
+    const r = svg.getBoundingClientRect();
+    const L = 34, R = 96;
+    const px = ((ev.clientX - r.left) / r.width) * vb.width;
+    const tt = Math.min(plan.runtime, Math.max(0, ((px - L) / (vb.width - L - R)) * plan.runtime));
+    svgs.forEach((sv) => {
+      const R2 = 96;
+      const xx = L + (tt / plan.runtime) * (sv.viewBox.baseVal.width - L - R2);
+      let ln = sv.querySelector('.xhair');
+      if (!ln) { ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('class', 'xhair'); sv.appendChild(ln); }
+      ln.setAttribute('x1', xx); ln.setAttribute('x2', xx); ln.setAttribute('y1', 6); ln.setAttribute('y2', sv.viewBox.baseVal.height - 20);
+    });
+    tip.hidden = false;
+    tip.innerHTML = `<b>${fmt(tt)} min</b> · ${fmt(pointAt(depthPts, tt))} m`
+      + tracks.map((g) => ` · ${esc(g.name)} ${fmt(Math.max(0, pointAt(g.pressureTrack, tt)))} bar`).join('');
+  };
+  const hide = () => { tip.hidden = true; svgs.forEach((sv) => sv.querySelector('.xhair')?.remove()); };
+  svgs.forEach((sv) => {
+    sv.addEventListener('pointermove', show);
+    sv.addEventListener('pointerdown', show);
+    sv.addEventListener('pointerleave', hide);
+  });
 }
 
 const isLow = (g, reserve) => Number.isFinite(g.endPressure) && g.endPressure < reserve;
@@ -323,7 +411,9 @@ function render(plan, cfg) {
     ${maxBottomLine(cfg)}
     ${plan.repetitive ? `<p class="meta">${esc(t('repetNote'))}</p>` : ''}
     ${warnings}
+    <div class="chart-tip" id="chartTip" hidden></div>
     ${profileSvg(plan)}
+    ${pressureSvg(plan, cfg.reservePressure)}
     <h3>${t('stops')}</h3>
     ${stopsTable}
     <h3>${t('gases')}</h3>
@@ -348,6 +438,7 @@ function update() {
     lastInput = cfg;
     updateBadges(plan, cfg.reservePressure);
     render(plan, cfg);
+    attachCrosshair(plan);
   } catch (e) {
     lastPlan = null;
     lastInput = null;
